@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
-   12PUBS — 13 crawls, 155 pubs.
+   12PUBS — 13 crawls, 156 pubs.
    v = true  : location confirmed against a real listing
    v = false : best guess. Shows amber on the map. Drag it to correct.
    Order within each year is walking order.
