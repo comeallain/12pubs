@@ -1,0 +1,10 @@
+{
+  "name": "12Pubs",
+  "short_name": "12Pubs",
+  "description": "Archive and route planner for the annual Dublin pub crawl.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0C1813",
+  "theme_color": "#13251E"
+}

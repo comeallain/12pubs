@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>12Pubs</title>
+<meta name="theme-color" content="#13251E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="12Pubs">
+<meta name="description" content="Archive and route planner for the annual Dublin pub crawl.">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=3">
+</head>
+<body>
+
+<header>
+  <h1>12Pubs <span>— Dublin</span></h1>
+  <nav>
+    <button id="t-archive" aria-current="true">Archive</button>
+    <button id="t-plan">Plan a route</button>
+    <button id="t-night">On the night</button>
+  </nav>
+  <div class="tally" id="tally"></div>
+</header>
+
+<main>
+  <div id="map"></div>
+  <aside>
+
+    <!-- ARCHIVE -->
+    <section class="pane on" id="p-archive">
+      <h2>Thirteen crawls</h2>
+      <p class="note">Every pub drunk since 2011. Tap a year to show or hide it. Amber pins are my best guess — drag one to the right spot and it stays put.</p>
+      <div class="ledger" id="ledger"></div>
+      <div class="ledger-actions">
+        <button class="mini" id="allOn">Show all</button>
+        <button class="mini" id="allOff">Hide all</button>
+        <button class="mini" id="amberOnly">Amber only</button>
+      </div>
+
+      <h2 style="margin-top:22px">Edit a crawl</h2>
+      <p class="note">Fix a name, change the order, or record a new year. Your changes are saved on this device; the shipped list underneath is never overwritten.</p>
+      <div class="field">
+        <select id="editYear"><option value="">Choose a year…</option></select>
+      </div>
+      <div id="editor"></div>
+      <div class="ledger-actions">
+        <button class="btn ghost" id="newYear">Record a new year</button>
+        <button class="mini" id="resetEdits">Undo all my edits</button>
+      </div>
+    </section>
+
+    <!-- PLANNER -->
+    <section class="pane" id="p-plan">
+      <h2>Plan a route</h2>
+      <p class="note">Twelve stops. Six slots of thirty minutes, then six of forty-five, with the walk taken out of each slot. Add pubs in walking order.</p>
+
+      <div class="row">
+        <div class="field"><label for="startT">Start</label><input type="time" id="startT" value="15:30"></div>
+        <div class="field"><label for="closeT">Last orders</label><input type="time" id="closeT" value="23:30"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="side">Side</label>
+          <select id="side"><option value="">Both sides</option><option value="N">Northside</option><option value="S">Southside</option></select>
+        </div>
+        <div class="field"><label for="pace">Walking pace</label>
+          <select id="pace">
+            <option value="4.5">A group, sober-ish — 4.5 km/h</option>
+            <option value="5.2">On your own, moving — 5.2 km/h</option>
+            <option value="3.8">Eight pints in — 3.8 km/h</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="q">Add a pub</label>
+        <input type="text" id="q" placeholder="Type a name, or click the map to drop a stop">
+        <div class="picker" id="picker"></div>
+      </div>
+
+      <div id="slots"></div>
+      <div id="verdict"></div>
+      <div class="ledger-actions">
+        <button class="btn ghost" id="clearRoute">Clear route</button>
+        <button class="btn" id="toNight">Use tonight</button>
+      </div>
+    </section>
+
+    <!-- NIGHT -->
+    <section class="pane" id="p-night">
+      <h2>On the night</h2>
+      <div class="clock" id="clock"><div class="big">—</div><div class="st">No route loaded</div></div>
+      <div id="ticks"></div>
+      <div class="ledger-actions">
+        <button class="mini" id="resetTicks">Reset all ticks</button>
+      </div>
+    </section>
+
+  </aside>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data.js?v=3"></script>
+<script src="app.js?v=3"></script>
+</body>
+</html>
