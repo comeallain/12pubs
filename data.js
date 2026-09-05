@@ -222,8 +222,8 @@ const CANDIDATES = [
   ["Quinns of Drumcondra", 53.3636, -6.2580, 7.0, 22.5, "N", "Drumcondra"],
   ["The Tolka House", 53.3738, -6.2690, 10.0, 23.5, "N", "Glasnevin"],
   // --- Northside: Ballybough, North Strand, Amiens St ---
-  ["Meaghers", 53.3627, -6.2423, 12.0, 23.5, "N", "Ballybough"],
-  ["Clonliffe House", 53.3612, -6.2426, 10.5, 23.5, "N", "Ballybough"],
+  ["Meaghers", 53.3627, -6.2423, 10.5, 23.5, "N", "Ballybough"],
+  ["Clonliffe House", 53.3612, -6.2426, 11.0, 23.5, "N", "Ballybough"],
   ["The Ref", 53.3595, -6.2449, 10.5, 23.5, "N", "Ballybough"],
   ["Annesley House", 53.3596, -6.2403, 10.5, 23.5, "N", "North Strand"],
   ["Cusack's", 53.3575, -6.2425, 10.5, 23.5, "N", "North Strand"],
@@ -235,6 +235,8 @@ const CANDIDATES = [
   ["Phibsborough House", 53.3589, -6.2737, 12.0, 23.5, "N", "Phibsborough"],
   ["Bleecker Street Bar", 53.3572, -6.2639, 15.0, 23.5, "N", "Dorset St"],
   ["Delahunty's", 53.3556, -6.2658, 10.5, 23.5, "N", "Dorset St"],
+  ["Glynn's Wellington House", 53.35552, -6.26596, 13.0, 23.5, "N", "Dorset St"],
+  ["Joxer Daly's", 53.35529, -6.26612, 10.0, 24.0, "N", "Dorset St"],
   ["The Big Tree", 53.3598, -6.2608, -1, -1, "N", "Dorset St"],
   // --- Northside: Dublin 1 ---
   ["The Confession Box", 53.3503, -6.2584, 11.5, 23.5, "N", "Dublin 1"],
@@ -246,6 +248,11 @@ const CANDIDATES = [
   ["The Parnell", 53.3522, -6.2620, 11.0, 23.5, "N", "Parnell St"],
   ["The Shakespeare", 53.3530, -6.2608, 12.0, 23.0, "N", "Parnell St"],
   ["The Big Romance", 53.3534, -6.2592, 16.0, 24.0, "N", "Parnell St"],
+  ["Murray's", 53.35252, -6.26110, 9.0, 23.5, "N", "O'Connell St"],
+  ["Fibber Magees", 53.35280, -6.26062, 12.0, 27.0, "N", "Parnell St"],
+  ["The Deer's Head (O'Reilly's)", 53.35339, -6.26016, 9.5, 24.0, "N", "Parnell St"],
+  ["MeMa's", 53.35322, -6.26044, 15.0, 23.5, "N", "Parnell St"],
+  ["The Wool Shed", 53.35027, -6.26747, 12.0, 26.5, "N", "Parnell St"],
   // --- Northside: Coolock & Artane ---
   ["Kyles Pub", 53.3889, -6.2010, 10.0, 23.5, "N", "Coolock"],
   ["The Cock and Bull", 53.3892, -6.2008, 10.5, 24.0, "N", "Coolock"],
