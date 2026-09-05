@@ -4,7 +4,12 @@ Archive and route planner for the annual Dublin pub crawl. Thirteen years of
 crawls on a map, a planner that does the slot arithmetic, and a tick list for
 the night itself.
 
-No build step, no server, no accounts. Six files, dropped into a repo.
+No build step, no server, no accounts. A handful of files in a repo.
+
+**Live:** https://comeallain.github.io/12pubs/
+
+Open that on your phone and use Share → **Add to Home Screen** and it behaves
+like an app, which is what you want on the night.
 
 ## Files
 
@@ -14,34 +19,23 @@ No build step, no server, no accounts. Six files, dropped into a repo.
 | `data.js` | **All the pubs.** This is the file you'll edit. |
 | `app.js` | The logic — map, slot maths, editor, ticks. |
 | `styles.css` | Colours, type, layout. |
-| `manifest.json` | Lets you add it to a phone home screen. |
+| `manifest.json` | Home-screen app details. |
+| `icon.svg`, `icon-*.png`, `apple-touch-icon.png` | The app icon. Edit the SVG, re-export the PNGs. |
 | `.nojekyll` | Stops GitHub mangling the files. Empty on purpose — leave it. |
-
-## Putting it online
-
-1. On github.com, click **New repository**. Name it `12pubs`. Tick
-   **Public**. Create.
-2. On the empty repo page, click **uploading an existing file**.
-3. Drag in all six files together. Click **Commit changes**.
-4. Go to **Settings** → **Pages** in the left sidebar.
-5. Under Source pick **Deploy from a branch**, branch **main**, folder
-   **/ (root)**. Save.
-6. Wait about a minute and refresh. The URL appears at the top of that page:
-   `https://<your-username>.github.io/12pubs/`
-
-That link is the dashboard. Open it on your phone and use Share → Add to Home
-Screen and it behaves like an app, which is what you want on the night.
-
-### If `.nojekyll` won't upload
-
-GitHub's web uploader sometimes hides files starting with a dot. If it does:
-create the file instead. Click **Add file** → **Create new file**, type
-`.nojekyll` as the name, leave it empty, and commit.
 
 ## Editing the pubs
 
-Open `data.js` in the repo, click the pencil icon, edit, commit. The live site
-updates in about a minute.
+Two ways, same result — the live site updates about a minute after a commit
+to `main`:
+
+- **In the browser:** open `data.js` on
+  [github.com/comeallain/12pubs](https://github.com/comeallain/12pubs), click
+  the pencil icon, edit, commit.
+- **Locally:** clone the repo, edit, `git push`.
+
+If you change `index.html`, `app.js` or `styles.css`, bump the `?v=` number on
+the three local links at the top and bottom of `index.html` — that's what makes
+browsers pick up the new files.
 
 **Adding a candidate pub** — copy a line inside `CANDIDATES` and change it:
 
@@ -80,6 +74,18 @@ slightly conservative, which is the right way round.
 
 Pin corrections, your archive edits, the route you're planning, and the ticks.
 All in the browser, on whichever phone or laptop you're using. Nothing syncs —
-one scorekeeper on the night. Clearing your browser data clears it, so once
-you've dragged the amber pins into place, it's worth copying the corrected
-coordinates back into `data.js` so they're permanent and everyone sees them.
+one scorekeeper on the night. Clearing your browser data clears it, so if you
+drag a pin or fix a name, it's worth copying the change back into `data.js` so
+it's permanent and everyone sees it.
+
+## Provenance of the pins
+
+Every location was verified in September 2026 against OpenStreetMap or
+researched by hand. The closed and renamed houses are pinned where they stood:
+the Dark Horse Inn (now a Starbucks), Ryans of Christchurch (now the
+Christchurch Inn), Bakers (now Dudley's), Shanahans of The Coombe (now
+Spitalfields), Mulligans of Sandymount (later the Chophouse), Becky Morgans
+(now the Storyteller), The Berkeley (now Nanny O'Shea's), the Glen of Aherlow
+(now Donoghue's), and the Underdog (now Bar Anam). The Loft in Howth was the
+Abbey Tavern's upstairs restaurant, so 2019's stops 5 and 6 share a building —
+pub downstairs, dinner upstairs.

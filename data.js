@@ -110,7 +110,7 @@ const ARCHIVE = [
     ["Top House", 53.3866, -6.0669, true],
     ["McNeills (Howth)", 53.3872, -6.0665, true],
     ["Abbey Tavern", 53.3876, -6.0648, true],
-    ["Loft Bar and Grill", 53.38700, -6.06576, false],
+    ["Loft Bar and Grill", 53.38700, -6.06576, true],   // upstairs in the Abbey Tavern
     ["O'Connells Pub", 53.38822, -6.06399, true],
     ["Fishermans Bar", 53.3902, -6.0703, true],
     ["Bloody Stream", 53.3886, -6.0672, true],
