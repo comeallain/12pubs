@@ -58,6 +58,24 @@ h2{
 }
 .note{font-size:13px;color:var(--cream-dim);margin:0 0 14px;line-height:1.5}
 
+/* ---------- collapsible sections ---------- */
+.fold{margin:0 0 14px}
+.fold summary{
+  cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;
+  padding:2px 0 6px;user-select:none;-webkit-user-select:none;
+}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary h2{margin:0}
+.fold summary::after{
+  content:"";width:8px;height:8px;margin-left:auto;flex-shrink:0;
+  border-right:2px solid var(--gilt);border-bottom:2px solid var(--gilt);
+  transform:rotate(45deg) translateY(-2px);transition:transform .15s;
+}
+.fold:not([open]) summary::after{transform:rotate(-45deg)}
+.fold:not([open]) summary{border-bottom:1px solid var(--line)}
+.fold summary .foldnote{font-size:12px;color:var(--cream-dim);display:none}
+.fold:not([open]) summary .foldnote{display:inline}
+
 /* ---------- year ledger ---------- */
 .ledger{border-top:1px solid var(--line)}
 .yr{

@@ -129,6 +129,8 @@ function buildLedger(){
   });
   document.getElementById('tally').textContent =
     `${total} pubs · ${total-amber} pinned · ${amber} to confirm`;
+  document.getElementById('yearsNote').textContent =
+    `${shown.size} of ${years().length} on the map`;
 }
 
 document.getElementById('allOn').onclick = ()=>{ years().forEach(y=>shown.add(y.year)); drawArchive(); buildLedger(); };
@@ -402,6 +404,18 @@ document.getElementById('resetEdits').onclick=()=>{
     drawArchive(); buildLedger(); fillYearSelect(); drawEditor(); drawPicker();
   }
 };
+
+/* ============================ folds ============================ */
+/* Collapsing a section frees vertical space for the map on phones,
+   so re-measure Leaflet after each toggle. State sticks per device. */
+document.querySelectorAll('details.fold').forEach(d=>{
+  const saved = LS.get('fold:'+d.id, null);
+  if(saved !== null) d.open = saved;
+  d.addEventListener('toggle', ()=>{
+    LS.set('fold:'+d.id, d.open);
+    setTimeout(()=>map.invalidateSize(), 60);
+  });
+});
 
 /* ============================ boot ============================ */
 document.getElementById('startT').value=startT;

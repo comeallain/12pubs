@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
 
@@ -37,25 +37,29 @@
 
     <!-- ARCHIVE -->
     <section class="pane on" id="p-archive">
-      <h2>Thirteen crawls</h2>
-      <p class="note">Every pub drunk since 2011. Tap a year to show or hide it. Amber pins are my best guess — drag one to the right spot and it stays put.</p>
-      <div class="ledger" id="ledger"></div>
-      <div class="ledger-actions">
-        <button class="mini" id="allOn">Show all</button>
-        <button class="mini" id="allOff">Hide all</button>
-        <button class="mini" id="amberOnly">Amber only</button>
-      </div>
+      <details class="fold" id="d-years" open>
+        <summary><h2>Thirteen crawls</h2><span class="foldnote" id="yearsNote"></span></summary>
+        <p class="note">Every pub drunk since 2011. Tap a year to show or hide it. Amber pins are my best guess — drag one to the right spot and it stays put.</p>
+        <div class="ledger" id="ledger"></div>
+        <div class="ledger-actions">
+          <button class="mini" id="allOn">Show all</button>
+          <button class="mini" id="allOff">Hide all</button>
+          <button class="mini" id="amberOnly">Amber only</button>
+        </div>
+      </details>
 
-      <h2 style="margin-top:22px">Edit a crawl</h2>
-      <p class="note">Fix a name, change the order, or record a new year. Your changes are saved on this device; the shipped list underneath is never overwritten.</p>
-      <div class="field">
-        <select id="editYear"><option value="">Choose a year…</option></select>
-      </div>
-      <div id="editor"></div>
-      <div class="ledger-actions">
-        <button class="btn ghost" id="newYear">Record a new year</button>
-        <button class="mini" id="resetEdits">Undo all my edits</button>
-      </div>
+      <details class="fold" id="d-edit" open>
+        <summary><h2>Edit a crawl</h2></summary>
+        <p class="note">Fix a name, change the order, or record a new year. Your changes are saved on this device; the shipped list underneath is never overwritten.</p>
+        <div class="field">
+          <select id="editYear"><option value="">Choose a year…</option></select>
+        </div>
+        <div id="editor"></div>
+        <div class="ledger-actions">
+          <button class="btn ghost" id="newYear">Record a new year</button>
+          <button class="mini" id="resetEdits">Undo all my edits</button>
+        </div>
+      </details>
     </section>
 
     <!-- PLANNER -->
@@ -108,7 +112,7 @@
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="data.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="data.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
