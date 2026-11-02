@@ -65,6 +65,8 @@ h2{font:600 18px/1.3 Fraunces,Georgia,serif;margin:0 0 8px}
 .opt small{display:block;font-weight:400;font-size:12px;color:var(--cream-dim)}
 .opt:disabled{opacity:.5;cursor:not-allowed}
 .finish{margin:0;padding:12px 8px;border-top:1px solid var(--line);font-size:14px}
+.stop.after{grid-template-columns:52px minmax(0,1fr)}
+.stop.after .time{font-size:14px;line-height:1.2}
 .finish b{font-family:Fraunces,Georgia,serif;font-size:17px;color:var(--gilt)}
 section{margin-top:24px}
 .sub-row{padding:8px 0;border-top:1px solid var(--line)}
@@ -93,7 +95,17 @@ section{margin-top:24px}
     <div id="changed"></div>
     <h2>The route</h2>
     <div id="stops"></div>
-    <p class="finish"><b>23:00</b> Finish at <span id="lastPub"></span>.</p>
+    <div class="afters">
+      <p class="finish"><b>23:00</b> Leave <span id="lastPub"></span>. That's the 12.</p>
+      <div class="stop after">
+        <div class="time">After party</div>
+        <div>
+          <span class="name">Whelan's</span>
+          <span class="where">Wexford Street. Open until 01:30</span>
+          <div class="links"><a class="link" id="afterLink" target="_blank" rel="noopener">Directions</a></div>
+        </div>
+      </div>
+    </div>
 
     <section>
       <h2>The subs</h2>
@@ -140,6 +152,8 @@ const SUBS = {
   mema:{name:"MeMa's", where:"Parnell Street", lat:53.35322, lng:-6.26044, open:15, close:23.5, id:"ChIJ4UVVvkoPZ0gRDJULdaMGF3Q"},
   woolshed:{name:"The Wool Shed", where:"Parnell Street", lat:53.35027, lng:-6.26747, open:17, close:23.5, id:"ChIJEff8I4IOZ0gRa3Aap96eX9g"}
 };
+
+const AFTER = {name:"Whelan's", id:"ChIJeVe40Z8OZ0gRWQrpG0YiJXA"};
 
 const store = {
   get(){ try{ return JSON.parse(localStorage.getItem('12pubs-2026-swaps')||'{}'); }catch(e){ return {}; } },
@@ -282,6 +296,7 @@ function render(){
     return row;
   }));
   document.getElementById('lastPub').textContent = list[11].name;
+  document.getElementById('afterLink').href = mapsLink(AFTER);
 
   const used = new Set(Object.values(swaps));
   document.getElementById('subs').replaceChildren(...Object.keys(SUBS).map(k=>{
@@ -309,7 +324,7 @@ async function copy(text,btn){
 document.getElementById('swapMode').onclick=()=>{ swapMode=!swapMode; picking=null; render(); };
 document.getElementById('copyRoute').onclick=e=>{
   const lines = slots().map(s=>hm(s.start)+' '+s.name+(s.food?' (food)':''));
-  copy('12 Pubs Of Winter\nWednesday 2 December\n\n'+lines.join('\n')+'\n\nFinish around 23:00.\n'+link(),e.target);
+  copy('12 Pubs Of Winter\nWednesday 2 December\n\n'+lines.join('\n')+"\n\nAfter party: Whelan's, Wexford Street.\n"+link(),e.target);
 };
 document.getElementById('copyUpdate').onclick=e=>{
   const lines = slots().filter(s=>s.from).map(s=>s.from+' is out. '+s.name+' is in at '+hm(s.start)+'.');

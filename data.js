@@ -348,6 +348,7 @@ const SAVED_ROUTES = [
       "Delahunty's"
     ],
     foodStop: "The Parnell",
+    after: { name: "Whelan's", where: "Wexford Street", until: "01:30" },
     subs: ["Bleecker Street Bar", "MeMa's", "The Wool Shed"],
     subKeys: { "Bleecker Street Bar": "bleecker", "MeMa's": "mema", "The Wool Shed": "woolshed" }
   }

@@ -23,7 +23,10 @@ direction clears the flag the original route raised.
 | 9 | 20:00 | The Parnell | 1 | 44 | **Food stop.** Book it, see below |
 | 10 | 20:45 | Joxer Daly's | 7 | 38 | |
 | 11 | 21:30 | Glynn's Wellington House | 1 | 44 | |
-| 12 | 22:15 | Delahunty's | 1 | 44 | Finish 23:00 |
+| 12 | 22:15 | Delahunty's | 1 | 44 | Leave 23:00 |
+
+After party: **Whelan's**, Wexford Street, open until 01:30 on Wednesdays. It
+isn't one of the 12.
 
 Subs, in James's order: Bleecker Street Bar, MeMa's, The Wool Shed.
 

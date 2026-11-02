@@ -319,7 +319,7 @@ function drawSaved(){
     if(r.subs && r.subs.length){
       const n=document.createElement('p');
       n.className='note';
-      n.textContent=(r.foodStop?'Food: '+r.foodStop+'. ':'')+'Subs: '+r.subs.join(', ');
+      n.textContent=(r.foodStop?'Food: '+r.foodStop+'. ':'')+'Subs: '+r.subs.join(', ')+'.'+(r.after?' After party: '+r.after.name+'.':'');
       el.appendChild(n);
     }
   });
@@ -393,6 +393,12 @@ function renderNight(){
     el.appendChild(b);
     if(lockedRoute && !ticks[s.name] && route.length===lockedRoute.stops.length) el.appendChild(swapControls(s));
   });
+  if(lockedRoute && lockedRoute.after){
+    const a=lockedRoute.after, n=document.createElement('p');
+    n.className='note'; n.style.marginTop='12px';
+    n.textContent=`After party: ${a.name}, ${a.where}. Open until ${a.until}.`;
+    el.appendChild(n);
+  }
   if(lockedRoute && slots.some(s=>s.swappedFrom)){
     const u=document.createElement('button');
     u.className='btn'; u.textContent='Copy update for the group';
