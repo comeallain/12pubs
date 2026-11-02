@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>12 Pubs Of Winter 2026</title>
+<meta name="description" content="Wednesday 2 December, 15:30. Meagher's to Delahunty's. 12 pubs.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#13251E">
+<meta property="og:title" content="12 Pubs Of Winter 2026">
+<meta property="og:description" content="Wednesday 2 December, 15:30. Meagher's to Delahunty's. 12 pubs.">
+<meta property="og:image" content="https://comeallain.github.io/12pubs/icon-512.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --fascia:#13251E;--deep:#0C1813;--panel:#1A312A;--panel2:#214036;
+  --cream:#F1E7D2;--cream-dim:#B9B19F;--gilt:#C89B3C;--gilt-soft:#8A6C2A;
+  --oxblood:#C4523F;--amber:#D08A2C;--sage:#7FA891;--line:rgba(241,231,210,.16);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--deep);color:var(--cream);font:15px/1.45 Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+a{color:var(--gilt)}
+:focus-visible{outline:2px solid var(--gilt);outline-offset:2px}
+header{background:var(--fascia);border-bottom:2px solid var(--gilt-soft);padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px))}
+h1{font:900 27px/1.1 Fraunces,Georgia,serif;margin:0;color:var(--gilt);text-wrap:balance}
+h1 span{font-weight:400;font-style:italic;color:var(--cream)}
+.when{margin:5px 0 0;font-size:14px}
+.when b{font-weight:600}
+.count{color:var(--cream-dim)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 440px}
+#map{background:#0A1410;min-height:300px;height:calc(100vh - 86px);height:calc(100dvh - 86px);position:sticky;top:0}
+.darkmap{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.88) saturate(.35)}
+.pin{display:grid;place-items:center;border-radius:50%;border:2px solid rgba(12,24,19,.85);box-shadow:0 0 0 1px rgba(241,231,210,.25);background:var(--gilt);color:var(--deep);font-size:11px;font-weight:700;width:22px;height:22px}
+.pin.sub{background:none;border:2px dashed var(--cream-dim);width:14px;height:14px;box-shadow:none}
+.pin.now{background:var(--cream)}
+.leaflet-container{font-family:Archivo,system-ui,sans-serif}
+aside{padding:16px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px));border-left:1px solid var(--line);background:var(--panel);min-width:0}
+h2{font:600 18px/1.3 Fraunces,Georgia,serif;margin:0 0 8px}
+.changed{margin:0 0 14px;padding:10px 12px;border:1px solid var(--amber);border-radius:3px;font-size:14px}
+.changed b{color:var(--amber)}
+.stop{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;padding:12px 8px;border-top:1px solid var(--line)}
+.stop.now{background:var(--panel2);box-shadow:inset 3px 0 0 var(--gilt)}
+.stop.past{opacity:.55}
+.time{font:600 17px/1.3 Fraunces,Georgia,serif;color:var(--gilt);font-variant-numeric:tabular-nums}
+.name{font-weight:700;font-size:16px;display:block}
+.where,.facts{display:block;font-size:13px;color:var(--cream-dim)}
+.tags{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px}
+.tag{padding:1px 6px;border-radius:2px;font-size:11px;font-weight:700;letter-spacing:.03em;background:var(--panel2);color:var(--cream)}
+.stop.now .tag{background:var(--panel)}
+.tag.food{background:var(--gilt);color:var(--deep)}
+.tag.warn{background:none;border:1px solid var(--amber);color:var(--amber)}
+.tag.sw{background:none;border:1px solid var(--sage);color:var(--sage)}
+.links{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:13px}
+.link{color:var(--gilt);text-decoration:underline;text-underline-offset:3px;font-size:13px}
+.options{display:grid;gap:6px;margin-top:8px}
+.opt{padding:8px 10px;border:1px solid var(--gilt-soft);border-radius:3px;color:var(--gilt);font-size:14px;font-weight:600;text-align:left;min-height:40px}
+.opt small{display:block;font-weight:400;font-size:12px;color:var(--cream-dim)}
+.opt:disabled{opacity:.5;cursor:not-allowed}
+.finish{margin:0;padding:12px 8px;border-top:1px solid var(--line);font-size:14px}
+.finish b{font-family:Fraunces,Georgia,serif;font-size:17px;color:var(--gilt)}
+section{margin-top:24px}
+.sub-row{padding:8px 0;border-top:1px solid var(--line)}
+.sub-row b{display:block}
+.sub-row span{font-size:13px;color:var(--cream-dim)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btn{padding:9px 14px;min-height:40px;border-radius:3px;font-weight:700;font-size:14px;background:var(--gilt);color:var(--deep)}
+.btn.ghost{background:none;border:1px solid var(--gilt-soft);color:var(--gilt)}
+.note{font-size:13px;color:var(--cream-dim);margin:6px 0 0}
+@media (max-width:860px){
+  main{display:block}
+  #map{position:relative;height:42vh;height:42dvh}
+  aside{border-left:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>12 Pubs <span>Of Winter 2026</span></h1>
+  <p class="when"><b>Wednesday 2 December, 15:30, Meagher's.</b> <span class="count" id="count"></span></p>
+</header>
+<main>
+  <div id="map" role="img" aria-label="Map of the 12 pub route from Meagher's in Drumcondra to Delahunty's on Dorset Street"></div>
+  <aside>
+    <div id="changed"></div>
+    <h2>The route</h2>
+    <div id="stops"></div>
+    <p class="finish"><b>23:00</b> Finish at <span id="lastPub"></span>.</p>
+
+    <section>
+      <h2>The subs</h2>
+      <div id="subs"></div>
+      <p class="note">Used if a pub is shut, full or has barred us.</p>
+    </section>
+
+    <section>
+      <h2>On the night</h2>
+      <p class="note" id="swapNote">Whoever's running the night makes swaps here, then sends the new link to the group. Everyone else's page changes when they open that link.</p>
+      <div class="actions">
+        <button class="btn ghost" id="swapMode" type="button">Swap a pub</button>
+        <button class="btn ghost" id="copyRoute" type="button">Copy the route</button>
+      </div>
+      <div class="actions" id="updateRow" hidden>
+        <button class="btn" id="copyUpdate" type="button">Copy update for the group</button>
+        <button class="btn ghost" id="resetAll" type="button">Back to the original route</button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* Everything for 2026 lives in this file. To change a pub, edit ROUTE or SUBS. */
+const PAGE = 'https://comeallain.github.io/12pubs/2026/';
+const DAY = '2026-12-02';
+const ROUTE = [
+  {name:"Meagher's", where:"Richmond Road, Drumcondra", lat:53.3627, lng:-6.2423, open:10.5, close:23.5, id:"ChIJuwZNdV4OZ0gRoN0PGndWTTc"},
+  {name:"Clonliffe House", where:"Ballybough Road", lat:53.3612, lng:-6.2426, open:11, close:23.5, id:"ChIJgdmzPV4OZ0gR4UE58JF8vUU"},
+  {name:"Bridge Tavern", where:"Summerhill Parade", lat:53.3573, lng:-6.2489, open:10, close:24, id:"ChIJTTM45ToGZ0gRzW14Qd4apfA"},
+  {name:"The Big Romance", where:"Parnell Street", lat:53.3534, lng:-6.2592, open:16, close:24, id:"ChIJufegxdgPZ0gR3Nnd6keYlJs"},
+  {name:"O'Reilly's", where:"Parnell Street. Also called The Deer's Head", lat:53.35339, lng:-6.26016, open:9.5, close:24, id:"ChIJ4acA_IYOZ0gRbkVCP1ad8MQ"},
+  {name:"The Shakespeare", where:"Parnell Street. Also called Kimchi Hophouse", lat:53.3530, lng:-6.2608, open:12, close:23, id:"ChIJDa7F5YYOZ0gRObg_ruHycEc"},
+  {name:"Fibber Magee's", where:"Parnell Street", lat:53.35280, lng:-6.26062, open:12, close:26.5, id:"ChIJL7OO74YOZ0gRNw4CmOJh5Kk"},
+  {name:"Murray's", where:"O'Connell Street Upper", lat:53.35252, lng:-6.26110, open:9, close:23.5, id:"ChIJbV4GlYYOZ0gRaGe3lJppVYw"},
+  {name:"The Parnell", where:"Parnell Street", lat:53.3522, lng:-6.2620, open:11, close:23.5, id:"ChIJ1wjst4YOZ0gR_pg-hMy3dhM", food:true},
+  {name:"Joxer Daly's", where:"Dorset Street", lat:53.35529, lng:-6.26612, open:10, close:24, id:"ChIJNfn2j4AOZ0gRGoU4_zlW0ys"},
+  {name:"Glynn's Wellington House", where:"Dorset Street", lat:53.35552, lng:-6.26596, open:13, close:23.5, id:"ChIJUYpRmoAOZ0gRJLYWE9CC-pc"},
+  {name:"Delahunty's", where:"Dorset Street", lat:53.3556, lng:-6.2658, open:10.5, close:23.5, id:"ChIJ1yqSmYAOZ0gRjz8jtiPOAIk"}
+];
+const SUBS = {
+  bleecker:{name:"Bleecker Street", where:"Dorset Street", lat:53.3572, lng:-6.2639, open:15, close:23.5, id:"ChIJkQxwCn4OZ0gRtI4y2o08FuA"},
+  mema:{name:"MeMa's", where:"Parnell Street", lat:53.35322, lng:-6.26044, open:15, close:23.5, id:"ChIJ4UVVvkoPZ0gRDJULdaMGF3Q"},
+  woolshed:{name:"The Wool Shed", where:"Parnell Street", lat:53.35027, lng:-6.26747, open:17, close:23.5, id:"ChIJEff8I4IOZ0gRa3Aap96eX9g"}
+};
+
+const store = {
+  get(){ try{ return JSON.parse(localStorage.getItem('12pubs-2026-swaps')||'{}'); }catch(e){ return {}; } },
+  set(v){ try{ localStorage.setItem('12pubs-2026-swaps', JSON.stringify(v)); }catch(e){} }
+};
+function fromHash(){
+  const m = location.hash.match(/^#swap=([a-z0-9,-]+)$/);
+  if(!m) return null;
+  const out = {};
+  m[1].split(',').forEach(part=>{
+    const [slot,key] = part.split('-');
+    const n = +slot;
+    if(n>=1 && n<=12 && SUBS[key]) out[n] = key;
+  });
+  return out;
+}
+let swaps = fromHash() || store.get();
+let swapMode = false, picking = null;
+
+const pad = n => String(n).padStart(2,'0');
+const hm = m => pad(Math.floor(m/60)%24)+':'+pad(m%60);
+function km(a,b){
+  const r=Math.PI/180, x=Math.sin((b.lat-a.lat)*r/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin((b.lng-a.lng)*r/2)**2;
+  return 2*6371*Math.asin(Math.sqrt(x));
+}
+const walkMins = (a,b) => Math.max(1, Math.round(km(a,b)*1.2/4.5*60));   // same sum as the 12Pubs planner
+const stopAt = i => swaps[i+1] ? {...SUBS[swaps[i+1]], food:ROUTE[i].food, from:ROUTE[i].name} : ROUTE[i];
+function slots(){
+  let t = 15*60+30;
+  return ROUTE.map((_,i)=>{
+    const p = stopAt(i), len = i<6 ? 30 : 45, walk = i ? walkMins(stopAt(i-1),p) : 0;
+    const s = {...p, i, start:t, end:t+len, walk, inPub:len-walk};
+    t += len;
+    return s;
+  });
+}
+const mapsLink = p => 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.name+', Dublin')+'&query_place_id='+p.id;
+const link = () => {
+  const parts = Object.keys(swaps).sort((a,b)=>a-b).map(k=>k+'-'+swaps[k]);
+  return PAGE + (parts.length ? '#swap='+parts.join(',') : '');
+};
+function el(tag,cls,text){ const e=document.createElement(tag); if(cls)e.className=cls; if(text!=null)e.textContent=text; return e; }
+
+function dayState(){
+  const n = new Date();
+  const today = n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());
+  return {today, isDay:today===DAY, mins:n.getHours()*60+n.getMinutes()};
+}
+
+/* ---------- map ---------- */
+let map=null, layer=null;
+if(window.L){
+  map = L.map('map',{zoomControl:true});
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19,className:'darkmap'}).addTo(map);
+  layer = L.layerGroup().addTo(map);
+  map.fitBounds(ROUTE.map(p=>[p.lat,p.lng]),{padding:[28,28]});
+}else{
+  document.getElementById('map').hidden = true;
+}
+function drawMap(list,current){
+  if(!map) return;
+  layer.clearLayers();
+  L.polyline(list.map(s=>[s.lat,s.lng]),{color:'#C89B3C',weight:3,opacity:.9,dashArray:'1 6',lineCap:'round'}).addTo(layer);
+  const used = new Set(Object.values(swaps));
+  Object.keys(SUBS).filter(k=>!used.has(k)).forEach(k=>{
+    const p=SUBS[k];
+    L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',iconSize:[14,14],iconAnchor:[7,7],html:'<div class="pin sub"></div>'}),title:p.name}).bindPopup('<b>'+p.name+'</b><br>Sub').addTo(layer);
+  });
+  list.forEach(s=>{
+    const html='<div class="pin'+(s.i===current?' now':'')+'">'+(s.i+1)+'</div>';
+    L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],html}),title:s.name,zIndexOffset:s.i===current?500:s.i})
+      .bindPopup('<b>'+s.name+'</b><br>'+hm(s.start)+' to '+hm(s.end)).addTo(layer);
+  });
+}
+
+/* ---------- page ---------- */
+function render(){
+  const list = slots();
+  const {today,isDay,mins} = dayState();
+  const current = isDay ? list.findIndex(s=>mins>=s.start && mins<s.end) : -1;
+
+  const days = Math.round((new Date(DAY+'T12:00:00')-new Date(today+'T12:00:00'))/864e5);
+  document.getElementById('count').textContent =
+    days>1 ? days+' days to go.' : days===1 ? 'Tomorrow.' : days===0 ? 'Today.' : 'Done for another year.';
+
+  const changed = document.getElementById('changed');
+  changed.replaceChildren();
+  const swapped = list.filter(s=>s.from);
+  if(swapped.length){
+    const box = el('div','changed');
+    box.appendChild(el('b',null,'Changed on the night: '));
+    box.append(swapped.map(s=>s.from+' is out, '+s.name+' is in at '+hm(s.start)).join('. ')+'.');
+    changed.appendChild(box);
+  }
+
+  const wrap = document.getElementById('stops');
+  wrap.replaceChildren(...list.map(s=>{
+    const past = isDay && mins>=s.end;
+    const row = el('article','stop'+(s.i===current?' now':'')+(past?' past':''));
+    row.appendChild(el('div','time',hm(s.start)));
+    const body = el('div'); body.style.minWidth='0';
+    body.appendChild(el('span','name',(s.i+1)+'. '+s.name));
+    body.appendChild(el('span','where',s.where));
+    body.appendChild(el('span','facts',(s.i? s.walk+' min walk, ' : '')+s.inPub+' min in the pub'));
+    const tags = el('div','tags');
+    if(s.i===current) tags.appendChild(el('span','tag','Now'));
+    if(s.food) tags.appendChild(el('span','tag food','Food'));
+    if(s.from) tags.appendChild(el('span','tag sw','Sub for '+s.from));
+    if(s.inPub<18) tags.appendChild(el('span','tag warn','Order on arrival'));
+    if(tags.children.length) body.appendChild(tags);
+    const links = el('div','links');
+    const a = el('a','link','Directions'); a.href=mapsLink(s); a.target='_blank'; a.rel='noopener'; links.appendChild(a);
+    if(swapMode && !past){
+      if(s.from){
+        const b = el('button','link','Put '+s.from+' back'); b.type='button';
+        b.onclick=()=>{ delete swaps[s.i+1]; picking=null; commit(); };
+        links.appendChild(b);
+      }else{
+        const b = el('button','link',picking===s.i?'Cancel':'Swap this pub'); b.type='button';
+        b.onclick=()=>{ picking = picking===s.i?null:s.i; render(); };
+        links.appendChild(b);
+      }
+    }
+    body.appendChild(links);
+    if(swapMode && picking===s.i){
+      const used = new Set(Object.values(swaps));
+      const opts = el('div','options');
+      Object.keys(SUBS).filter(k=>!used.has(k)).forEach(k=>{
+        const p = SUBS[k];
+        const tooEarly = p.open*60 > s.start;
+        const b = el('button','opt',p.name); b.type='button'; b.disabled = tooEarly;
+        b.appendChild(el('small',null,tooEarly ? 'Not open until '+hm(p.open*60) : p.where));
+        b.onclick=()=>{ swaps[s.i+1]=k; picking=null; commit(); };
+        opts.appendChild(b);
+      });
+      if(!opts.children.length) opts.appendChild(el('span','where','All three subs are in use.'));
+      body.appendChild(opts);
+    }
+    row.appendChild(body);
+    return row;
+  }));
+  document.getElementById('lastPub').textContent = list[11].name;
+
+  const used = new Set(Object.values(swaps));
+  document.getElementById('subs').replaceChildren(...Object.keys(SUBS).map(k=>{
+    const p=SUBS[k], r=el('div','sub-row');
+    r.appendChild(el('b',null,p.name));
+    r.appendChild(el('span',null,used.has(k) ? 'In use tonight' : p.where+'. Open '+hm(p.open*60)+' to '+hm(p.close*60)+' on Wednesdays'));
+    return r;
+  }));
+
+  document.getElementById('swapMode').textContent = swapMode ? 'Finish swapping' : 'Swap a pub';
+  document.getElementById('updateRow').hidden = !swapped.length;
+  drawMap(list,current);
+}
+function commit(){
+  store.set(swaps);
+  history.replaceState(null,'',Object.keys(swaps).length ? link().slice(link().indexOf('#')) : location.pathname);
+  render();
+}
+async function copy(text,btn){
+  const label = btn.textContent;
+  try{ await navigator.clipboard.writeText(text); btn.textContent='Copied'; }
+  catch(e){ window.prompt('Copy this:',text); }
+  setTimeout(()=>{ btn.textContent=label; },1400);
+}
+document.getElementById('swapMode').onclick=()=>{ swapMode=!swapMode; picking=null; render(); };
+document.getElementById('copyRoute').onclick=e=>{
+  const lines = slots().map(s=>hm(s.start)+' '+s.name+(s.food?' (food)':''));
+  copy('12 Pubs Of Winter\nWednesday 2 December\n\n'+lines.join('\n')+'\n\nFinish around 23:00.\n'+link(),e.target);
+};
+document.getElementById('copyUpdate').onclick=e=>{
+  const lines = slots().filter(s=>s.from).map(s=>s.from+' is out. '+s.name+' is in at '+hm(s.start)+'.');
+  copy('🪓 '+lines.join('\n')+'\nNew route: '+link(),e.target);
+};
+document.getElementById('resetAll').onclick=()=>{ swaps={}; picking=null; commit(); };
+window.addEventListener('hashchange',()=>{ const h=fromHash(); if(h){ swaps=h; render(); } });
+render();
+setInterval(()=>{ if(dayState().isDay) render(); },30000);
+</script>
+</body>
+</html>

@@ -196,3 +196,9 @@ td.m{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;width
 
 /* Standard OSM tiles rendered dark; keeps the palette without a tile API key. */
 .darkmap{ filter: invert(1) hue-rotate(180deg) brightness(.82) contrast(.88) saturate(.35); }
+
+/* ---------- locked route and swaps ---------- */
+.locked .addpub,.locked #clearRoute,.locked .x{display:none}
+.swapbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px 12px 48px;border-bottom:1px solid var(--line)}
+.swapopt{padding:7px 11px;font-size:13px}
+.tick .sub,#slots .sub{display:block}

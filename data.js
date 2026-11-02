@@ -331,6 +331,8 @@ const CANDIDATES = [
 
 const SAVED_ROUTES = [
   { id: "2026-meaghers", label: "2026: Meagher's to Dorset St", start: "15:30",
+    date: "Wed 2 December", locked: true,
+    page: "https://comeallain.github.io/12pubs/2026/",
     stops: [
       "Meaghers",
       "Clonliffe House",
@@ -346,6 +348,7 @@ const SAVED_ROUTES = [
       "Delahunty's"
     ],
     foodStop: "The Parnell",
-    subs: ["Bleecker Street Bar", "MeMa's", "The Wool Shed"]
+    subs: ["Bleecker Street Bar", "MeMa's", "The Wool Shed"],
+    subKeys: { "Bleecker Street Bar": "bleecker", "MeMa's": "mema", "The Wool Shed": "woolshed" }
   }
 ];

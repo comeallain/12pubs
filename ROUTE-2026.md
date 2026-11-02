@@ -1,6 +1,8 @@
 # 2026 route — Meagher's to Dorset Street
 
-Loads from the **Saved routes** button in the planner. Same twelve pubs and
+Locked for **Wednesday 2 December 2026**. Share the route at
+https://comeallain.github.io/12pubs/2026/ and swap subs from there or from the
+On the night tab. Same twelve pubs and
 subs as the Dorset Street route further down, walked in reverse. Times come
 from the app's own slot maths at group pace.
 

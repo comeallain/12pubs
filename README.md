@@ -23,6 +23,16 @@ like an app, which is what you want on the night.
 | `icon.svg`, `icon-*.png`, `apple-touch-icon.png` | The app icon. Edit the SVG, re-export the PNGs. |
 | `.nojekyll` | Stops GitHub mangling the files. Empty on purpose — leave it. |
 
+## This year's page
+
+`2026/index.html` is a standalone page for the group: the 2026 route, map, subs
+and timings, with no archive. Everything it needs is inside that one file. Its
+link is https://comeallain.github.io/12pubs/2026/
+
+On the night, tap **Swap a pub**, choose the sub, then **Copy update for the
+group** and post it. Nothing syncs by itself: other phones change when they
+open the new link. The On the night tab in the main app does the same swap.
+
 ## Editing the pubs
 
 Two ways, same result — the live site updates about a minute after a commit

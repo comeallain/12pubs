@@ -174,6 +174,7 @@ document.getElementById('side').onchange=drawPicker;
 
 map.on('click', e=>{
   if(document.getElementById('p-plan').classList.contains('on')===false) return;
+  if(isLocked()) return;
   const n=prompt('Name of this pub');
   if(!n) return;
   const cl=clash(n);
@@ -229,11 +230,12 @@ function render(){
     if(s.open===-1 && !s.custom) flags += `<span class="bad">Closed Wednesdays</span>`;
     else if(s.open>0 && s.arrive < decToMin(s.open)) flags += `<span class="warn">Opens ${hm(decToMin(s.open))} — you're ${decToMin(s.open)-s.arrive} min early</span>`;
     if(s.close>0 && s.leave > decToMin(s.close)) flags += `<span class="bad">Shuts ${hm(decToMin(s.close))} before you leave</span>`;
+    if(s.swappedFrom) flags += `<span class="warn">Sub for ${s.swappedFrom}</span>`;
     const cl=clash(s.name);
     if(cl && cl.level==='exact') flags += `<span class="bad">Already drunk — ${cl.year}</span>`;
     else if(cl) flags += `<span class="warn">Name clash with ${cl.name}, ${cl.year} — check it's a different house</span>`;
     html += `<tr class="${s.len===30?'slot30':''}"><td class="t">${hm(s.leave-s.len)}</td>`+
-      `<td><span class="pubname">${s.name}</span><span class="sub">slot ${s.i+1} · ${s.len} min${isFoodStop(s.name)?' · food stop':''}</span>${flags}</td>`+
+      `<td><span class="pubname">${s.name}</span><span class="sub">slot ${s.i+1} · ${s.len} min${isFoodStop(s)?' · food stop':''}</span>${flags}</td>`+
       `<td class="m">${s.walk||'—'}</td><td class="m">${s.inPub}</td>`+
       `<td><button class="x" data-i="${s.i}" title="Remove">✕</button></td></tr>`;
   });
@@ -265,7 +267,34 @@ document.getElementById('clearRoute').onclick=()=>{ if(confirm('Clear the whole 
 document.getElementById('toNight').onclick=()=>{ tab('night'); };
 
 /* ============================ saved routes ============================ */
-const isFoodStop = n => SAVED_ROUTES.some(r=>r.foodStop===n);
+const isFoodStop = p => SAVED_ROUTES.some(r=>r.foodStop===p.name||r.foodStop===p.swappedFrom);
+const lockedRoute = SAVED_ROUTES.find(r=>r.locked);
+let unlocked = LS.get('unlocked',false);
+const isLocked = () => !!lockedRoute && !unlocked;
+function applyLock(){ document.getElementById('p-plan').classList.toggle('locked',isLocked()); }
+
+/* Swaps keep the slot and its times. The walk and the time inside recalculate. */
+function candidateStop(name){
+  const c=CANDIDATES.find(c=>c[0]===name);
+  return c ? {name:c[0],lat:c[1],lng:c[2],open:c[3],close:c[4]} : null;
+}
+function swapStop(i,subName){
+  const next=candidateStop(subName); if(!next) return;
+  route[i]={...next, swappedFrom:route[i].swappedFrom||route[i].name};
+  swapOpen=null; save(); render(); renderNight();
+}
+function unswapStop(i){
+  const orig=candidateStop(route[i].swappedFrom); if(!orig) return;
+  route[i]=orig;
+  swapOpen=null; save(); render(); renderNight();
+}
+function groupUpdate(){
+  const r=lockedRoute;
+  const {slots}=computeSlots();
+  const done=slots.filter(s=>s.swappedFrom);
+  const hash=done.map(s=>(s.i+1)+'-'+r.subKeys[s.name]).join(',');
+  return '🪓 '+done.map(s=>`${s.swappedFrom} is out. ${s.name} is in at ${hm(s.leave-s.len)}.`).join('\n')+'\nNew route: '+r.page+'#swap='+hash;
+}
 function savedStops(names){
   return names.map(n=>CANDIDATES.find(c=>c[0]===n)).filter(Boolean)
     .map(c=>({name:c[0],lat:c[1],lng:c[2],open:c[3],close:c[4]}));
@@ -277,13 +306,13 @@ function loadSaved(r){
 }
 function drawSaved(){
   const el=document.getElementById('savedRoutes');
-  el.innerHTML='<label>Saved routes</label>';
+  el.innerHTML='<label>'+(isLocked()?'Locked for '+lockedRoute.date:'Saved routes')+'</label>';
   SAVED_ROUTES.forEach(r=>{
     const b=document.createElement('button');
     b.className='btn ghost';
-    b.textContent='Load '+r.label;
+    b.textContent=isLocked()?'Reset to the locked route':'Load '+r.label;
     b.onclick=()=>{
-      if(route.length && !confirm(`Replace the ${route.length}-stop route in the planner?`)) return;
+      if(route.length && !confirm(isLocked()?'Undo any swaps and go back to the locked route?':`Replace the ${route.length}-stop route in the planner?`)) return;
       loadSaved(r);
     };
     el.appendChild(b);
@@ -294,9 +323,48 @@ function drawSaved(){
       el.appendChild(n);
     }
   });
+  if(lockedRoute){
+    const m=document.createElement('button');
+    m.className='mini';
+    m.textContent=unlocked?'Lock the route again':'Unlock to edit';
+    m.onclick=()=>{
+      unlocked=!unlocked; LS.set('unlocked',unlocked);
+      applyLock(); drawSaved(); render();
+    };
+    el.appendChild(m);
+  }
 }
 
 /* ============================ night ============================ */
+let swapOpen=null;
+function swapControls(s){
+  const wrap=document.createElement('div');
+  wrap.className='swapbar';
+  const onRoute=new Set(route.map(r=>r.name));
+  if(s.swappedFrom){
+    const b=document.createElement('button');
+    b.className='mini'; b.textContent=`Put ${s.swappedFrom} back`;
+    b.onclick=()=>unswapStop(s.i);
+    wrap.appendChild(b);
+    return wrap;
+  }
+  const t=document.createElement('button');
+  t.className='mini'; t.textContent=swapOpen===s.i?'Cancel':'Swap this pub';
+  t.onclick=()=>{ swapOpen=swapOpen===s.i?null:s.i; renderNight(); };
+  wrap.appendChild(t);
+  if(swapOpen===s.i){
+    lockedRoute.subs.filter(n=>!onRoute.has(n)).forEach(n=>{
+      const c=candidateStop(n); if(!c) return;
+      const early=c.open>0 && decToMin(c.open)>s.leave-s.len;
+      const b=document.createElement('button');
+      b.className='btn ghost swapopt'; b.disabled=early;
+      b.textContent=early?`${n} (opens ${hm(decToMin(c.open))})`:n;
+      b.onclick=()=>swapStop(s.i,n);
+      wrap.appendChild(b);
+    });
+  }
+  return wrap;
+}
 function renderNight(){
   const {slots}=computeSlots();
   const el=document.getElementById('ticks');
@@ -320,10 +388,21 @@ function renderNight(){
     b.className='tick'+(ticks[s.name]?' done':'')+(i===current?' now':'');
     b.innerHTML=`<span class="box">${ticks[s.name]?'✓':''}</span>`+
       `<span><span class="pubname">${s.name}</span><span class="sub">`+
-      `${hm(s.leave-s.len)}–${hm(s.leave)} · ${s.inPub} min inside${isFoodStop(s.name)?' · food stop':''}</span></span>`;
+      `${hm(s.leave-s.len)}–${hm(s.leave)} · ${s.inPub} min inside${isFoodStop(s)?' · food stop':''}${s.swappedFrom?' · sub for '+s.swappedFrom:''}</span></span>`;
     b.onclick=()=>{ ticks[s.name]=!ticks[s.name]; LS.set('ticks',ticks); renderNight(); };
     el.appendChild(b);
+    if(lockedRoute && !ticks[s.name] && route.length===lockedRoute.stops.length) el.appendChild(swapControls(s));
   });
+  if(lockedRoute && slots.some(s=>s.swappedFrom)){
+    const u=document.createElement('button');
+    u.className='btn'; u.textContent='Copy update for the group';
+    u.style.marginTop='12px';
+    u.onclick=async()=>{
+      try{ await navigator.clipboard.writeText(groupUpdate()); u.textContent='Copied'; }
+      catch(e){ window.prompt('Copy this:',groupUpdate()); }
+    };
+    el.appendChild(u);
+  }
 }
 document.getElementById('resetTicks').onclick=()=>{ if(confirm('Untick every pub?')){ ticks={}; LS.set('ticks',ticks); renderNight(); } };
 setInterval(()=>{ if(document.getElementById('p-night').classList.contains('on')) renderNight(); }, 30000);
@@ -452,7 +531,8 @@ document.querySelectorAll('details.fold').forEach(d=>{
 /* ============================ boot ============================ */
 document.getElementById('startT').value=startT;
 document.getElementById('closeT').value=closeT;
+// Each device picks up the locked route once. Swaps made after that are kept.
+if(lockedRoute && !unlocked && !LS.get('lock:'+lockedRoute.id,false)) loadSaved(lockedRoute);
+if(lockedRoute) LS.set('lock:'+lockedRoute.id,true);
+applyLock();
 drawArchive(); buildLedger(); drawPicker(); fillYearSelect(); drawSaved();
-// First visit on this device with an empty planner: load the current route once.
-if(!route.length && !LS.get('seeded',false) && SAVED_ROUTES.length) loadSaved(SAVED_ROUTES[0]);
-LS.set('seeded',true);
