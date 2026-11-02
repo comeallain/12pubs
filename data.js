@@ -323,3 +323,28 @@ const CANDIDATES = [
   ["The Voyager", 53.3441, -6.2632, 15.5, 23.5, "S", "Dame St"],
   ["Trinity Bar", 53.3444, -6.2636, 8.0, 24.5, "S", "Dame St"]
 ];
+
+/* ------------------------------------------------------------------
+   SAVED ROUTES — ready-made routes, one tap to load in the planner.
+   Names must match a pub in CANDIDATES exactly. Walking order.
+   ------------------------------------------------------------------ */
+
+const SAVED_ROUTES = [
+  { id: "2026-meaghers", label: "2026: Meagher's to Dorset St", start: "15:30",
+    stops: [
+      "Meaghers",
+      "Clonliffe House",
+      "Bridge Tavern",
+      "The Big Romance",
+      "The Deer's Head (O'Reilly's)",
+      "The Shakespeare",
+      "Fibber Magees",
+      "Murray's",
+      "The Parnell",
+      "Joxer Daly's",
+      "Glynn's Wellington House",
+      "Delahunty's"
+    ],
+    subs: ["MeMa's", "The Wool Shed", "Bleecker Street Bar"]
+  }
+];

@@ -1,3 +1,32 @@
+# 2026 route — Meagher's to Dorset Street
+
+Loads from the **Saved routes** button in the planner. Same twelve pubs and
+subs as the Dorset Street route further down, walked in reverse. Times come
+from the app's own slot maths at group pace.
+
+Start **15:30**, finish **23:00**, thirty minutes inside last orders. Forty
+minutes total walking. Delahunty's is inside the 1.2km finish rule, so this
+direction clears the flag the original route raised.
+
+| # | Leave | Pub | Walk | In pub | Notes |
+|--:|------:|-----|-----:|-------:|-------|
+| 1 | 15:30 | Meagher's | — | 30 | |
+| 2 | 16:00 | Clonliffe House | 3 | 27 | |
+| 3 | 16:30 | Bridge Tavern | 10 | 20 | |
+| 4 | 17:00 | The Big Romance | 13 | 17 | The long leg. Order on arrival |
+| 5 | 17:30 | The Deer's Head | 1 | 29 | This is "O'Reilly's" |
+| 6 | 18:00 | The Shakespeare | 1 | 29 | |
+| 7 | 18:30 | Fibber Magees | 1 | 44 | |
+| 8 | 19:15 | Murray's | 1 | 44 | |
+| 9 | 20:00 | The Parnell | 1 | 44 | Ring ahead, see cautions below |
+| 10 | 20:45 | Joxer Daly's | 7 | 38 | |
+| 11 | 21:30 | Glynn's Wellington House | 1 | 44 | |
+| 12 | 22:15 | Delahunty's | 1 | 44 | Finish 23:00 |
+
+Slot numbers in the cautions below refer to the original route.
+
+---
+
 # 2026 route — Dorset Street to Ballybough
 
 Researched September 2026. All twelve pubs and all three subs are open and

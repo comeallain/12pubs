@@ -264,6 +264,37 @@ document.getElementById('pace').onchange=render;
 document.getElementById('clearRoute').onclick=()=>{ if(confirm('Clear the whole route?')){ route=[]; save(); render(); } };
 document.getElementById('toNight').onclick=()=>{ tab('night'); };
 
+/* ============================ saved routes ============================ */
+function savedStops(names){
+  return names.map(n=>CANDIDATES.find(c=>c[0]===n)).filter(Boolean)
+    .map(c=>({name:c[0],lat:c[1],lng:c[2],open:c[3],close:c[4]}));
+}
+function loadSaved(r){
+  route=savedStops(r.stops);
+  document.getElementById('startT').value=r.start;
+  save(); render();
+}
+function drawSaved(){
+  const el=document.getElementById('savedRoutes');
+  el.innerHTML='<label>Saved routes</label>';
+  SAVED_ROUTES.forEach(r=>{
+    const b=document.createElement('button');
+    b.className='btn ghost';
+    b.textContent='Load '+r.label;
+    b.onclick=()=>{
+      if(route.length && !confirm(`Replace the ${route.length}-stop route in the planner?`)) return;
+      loadSaved(r);
+    };
+    el.appendChild(b);
+    if(r.subs && r.subs.length){
+      const n=document.createElement('p');
+      n.className='note';
+      n.textContent='Subs: '+r.subs.join(', ');
+      el.appendChild(n);
+    }
+  });
+}
+
 /* ============================ night ============================ */
 function renderNight(){
   const {slots}=computeSlots();
@@ -420,4 +451,7 @@ document.querySelectorAll('details.fold').forEach(d=>{
 /* ============================ boot ============================ */
 document.getElementById('startT').value=startT;
 document.getElementById('closeT').value=closeT;
-drawArchive(); buildLedger(); drawPicker(); fillYearSelect();
+drawArchive(); buildLedger(); drawPicker(); fillYearSelect(); drawSaved();
+// First visit on this device with an empty planner: load the current route once.
+if(!route.length && !LS.get('seeded',false) && SAVED_ROUTES.length) loadSaved(SAVED_ROUTES[0]);
+LS.set('seeded',true);
