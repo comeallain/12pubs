@@ -233,7 +233,7 @@ function render(){
     if(cl && cl.level==='exact') flags += `<span class="bad">Already drunk — ${cl.year}</span>`;
     else if(cl) flags += `<span class="warn">Name clash with ${cl.name}, ${cl.year} — check it's a different house</span>`;
     html += `<tr class="${s.len===30?'slot30':''}"><td class="t">${hm(s.leave-s.len)}</td>`+
-      `<td><span class="pubname">${s.name}</span><span class="sub">slot ${s.i+1} · ${s.len} min</span>${flags}</td>`+
+      `<td><span class="pubname">${s.name}</span><span class="sub">slot ${s.i+1} · ${s.len} min${isFoodStop(s.name)?' · food stop':''}</span>${flags}</td>`+
       `<td class="m">${s.walk||'—'}</td><td class="m">${s.inPub}</td>`+
       `<td><button class="x" data-i="${s.i}" title="Remove">✕</button></td></tr>`;
   });
@@ -265,6 +265,7 @@ document.getElementById('clearRoute').onclick=()=>{ if(confirm('Clear the whole 
 document.getElementById('toNight').onclick=()=>{ tab('night'); };
 
 /* ============================ saved routes ============================ */
+const isFoodStop = n => SAVED_ROUTES.some(r=>r.foodStop===n);
 function savedStops(names){
   return names.map(n=>CANDIDATES.find(c=>c[0]===n)).filter(Boolean)
     .map(c=>({name:c[0],lat:c[1],lng:c[2],open:c[3],close:c[4]}));
@@ -289,7 +290,7 @@ function drawSaved(){
     if(r.subs && r.subs.length){
       const n=document.createElement('p');
       n.className='note';
-      n.textContent='Subs: '+r.subs.join(', ');
+      n.textContent=(r.foodStop?'Food: '+r.foodStop+'. ':'')+'Subs: '+r.subs.join(', ');
       el.appendChild(n);
     }
   });
@@ -319,7 +320,7 @@ function renderNight(){
     b.className='tick'+(ticks[s.name]?' done':'')+(i===current?' now':'');
     b.innerHTML=`<span class="box">${ticks[s.name]?'✓':''}</span>`+
       `<span><span class="pubname">${s.name}</span><span class="sub">`+
-      `${hm(s.leave-s.len)}–${hm(s.leave)} · ${s.inPub} min inside</span></span>`;
+      `${hm(s.leave-s.len)}–${hm(s.leave)} · ${s.inPub} min inside${isFoodStop(s.name)?' · food stop':''}</span></span>`;
     b.onclick=()=>{ ticks[s.name]=!ticks[s.name]; LS.set('ticks',ticks); renderNight(); };
     el.appendChild(b);
   });

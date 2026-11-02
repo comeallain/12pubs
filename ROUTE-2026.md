@@ -15,13 +15,22 @@ direction clears the flag the original route raised.
 | 3 | 16:30 | Bridge Tavern | 10 | 20 | |
 | 4 | 17:00 | The Big Romance | 13 | 17 | The long leg. Order on arrival |
 | 5 | 17:30 | The Deer's Head | 1 | 29 | This is "O'Reilly's" |
-| 6 | 18:00 | The Shakespeare | 1 | 29 | |
+| 6 | 18:00 | The Shakespeare | 1 | 29 | Korean kitchen if you can't wait |
 | 7 | 18:30 | Fibber Magees | 1 | 44 | |
 | 8 | 19:15 | Murray's | 1 | 44 | |
-| 9 | 20:00 | The Parnell | 1 | 44 | Ring ahead, see cautions below |
+| 9 | 20:00 | The Parnell | 1 | 44 | **Food stop.** Book it, see below |
 | 10 | 20:45 | Joxer Daly's | 7 | 38 | |
 | 11 | 21:30 | Glynn's Wellington House | 1 | 44 | |
 | 12 | 22:15 | Delahunty's | 1 | 44 | Finish 23:00 |
+
+Subs, in James's order: Bleecker Street Bar, MeMa's, The Wool Shed.
+
+**Food at The Parnell:** Lisney's listings for the building read "Sold" and
+"For Sale / Sale Agreed" as of November 2026. The pub's own site still shows
+it open, 11:00 to 23:30 on Wednesdays, but gives no kitchen hours. Ring
++353 1 878 3380 or email bookingsparnell@gmail.com to confirm the kitchen, the
+new owners' plans and a table for the group at 20:00. MeMa's is the fallback:
+beside the Deer's Head, wood-fired pizza.
 
 Slot numbers in the cautions below refer to the original route.
 
@@ -56,7 +65,7 @@ minutes total walking at group pace.
 | Sub | Where | Wed hours | Best swapped for |
 |-----|-------|-----------|------------------|
 | MeMa's | 155 Parnell St | 15:00–23:30 | Any Parnell St stop — it's beside the Deer's Head |
-| The Wool Shed | Parnell Centre | 12:00–02:30 | A west-Parnell St stop; sold Jan 2025, still trading |
+| The Wool Shed | Parnell Centre | 17:00–23:30 | A west-Parnell St stop; sold Jan 2025, still trading |
 | Bleecker Street Bar | Dorset St | 15:00–23:45 | A Dorset St stop; doesn't open before 15:00 |
 
 ## Cautions

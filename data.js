@@ -222,7 +222,7 @@ const CANDIDATES = [
   ["Quinns of Drumcondra", 53.3636, -6.2580, 7.0, 22.5, "N", "Drumcondra"],
   ["The Tolka House", 53.3738, -6.2690, 10.0, 23.5, "N", "Glasnevin"],
   // --- Northside: Ballybough, North Strand, Amiens St ---
-  ["Meaghers", 53.3627, -6.2423, 10.5, 23.5, "N", "Ballybough"],
+  ["Meaghers", 53.3627, -6.2423, 10.5, 23.5, "N", "Drumcondra"],
   ["Clonliffe House", 53.3612, -6.2426, 11.0, 23.5, "N", "Ballybough"],
   ["The Ref", 53.3595, -6.2449, 10.5, 23.5, "N", "Ballybough"],
   ["Annesley House", 53.3596, -6.2403, 10.5, 23.5, "N", "North Strand"],
@@ -252,7 +252,7 @@ const CANDIDATES = [
   ["Fibber Magees", 53.35280, -6.26062, 12.0, 27.0, "N", "Parnell St"],
   ["The Deer's Head (O'Reilly's)", 53.35339, -6.26016, 9.5, 24.0, "N", "Parnell St"],
   ["MeMa's", 53.35322, -6.26044, 15.0, 23.5, "N", "Parnell St"],
-  ["The Wool Shed", 53.35027, -6.26747, 12.0, 26.5, "N", "Parnell St"],
+  ["The Wool Shed", 53.35027, -6.26747, 17.0, 23.5, "N", "Parnell St"],
   // --- Northside: Coolock & Artane ---
   ["Kyles Pub", 53.3889, -6.2010, 10.0, 23.5, "N", "Coolock"],
   ["The Cock and Bull", 53.3892, -6.2008, 10.5, 24.0, "N", "Coolock"],
@@ -345,6 +345,7 @@ const SAVED_ROUTES = [
       "Glynn's Wellington House",
       "Delahunty's"
     ],
-    subs: ["MeMa's", "The Wool Shed", "Bleecker Street Bar"]
+    foodStop: "The Parnell",
+    subs: ["Bleecker Street Bar", "MeMa's", "The Wool Shed"]
   }
 ];
