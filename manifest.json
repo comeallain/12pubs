@@ -1,14 +1,17 @@
 {
-  "name": "12Pubs",
-  "short_name": "12Pubs",
-  "description": "Archive and route planner for the annual Dublin pub crawl.",
-  "start_url": "./index.html",
+  "name": "12 Pubs Of Winter",
+  "short_name": "12 Pubs",
+  "description": "Route, check-ins and the board for the 12 Pubs Of Winter. Guests only.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0C1813",
-  "theme_color": "#13251E",
+  "background_color": "#0B1712",
+  "theme_color": "#0B1712",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ]
 }

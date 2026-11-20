@@ -1,544 +1,501 @@
-/* ============================ storage ============================ */
-const LS = {
-  get(k, d){ try{ const v = localStorage.getItem('12pubs:'+k); return v?JSON.parse(v):d; }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem('12pubs:'+k, JSON.stringify(v)); }catch(e){} }
-};
-const moved   = LS.get('moved', {});     // "2012|Delaneys" -> [lat,lng]
-let   edits   = LS.get('edits', {});     // year -> {district, pubs:[[name,lat,lng,verified]]}
-let   route   = LS.get('route', []);     // [{name,lat,lng,open,close,custom}]
-let   ticks   = LS.get('ticks', {});
-let   startT  = LS.get('startT','15:30');
-let   closeT  = LS.get('closeT','23:30');
+/* 12 Pubs Of Winter. Everything private lives in the database and is only
+   handed to emails on the guest list. This file holds no route data. */
+'use strict';
+const SB = 'https://afijpjkgkknhsmtriqzq.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmaWpwamtna2tuaHNtdHJpcXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyMDMyMDYsImV4cCI6MjExMDc3OTIwNn0.uWTbmFrr2A8TtvfgxKCp0H2ssHXHttnpirDv_iia2oY';
+const SITE = location.origin + location.pathname.replace(/index\.html$/, '');
 
-/* ============================ helpers ============================ */
-/* Baseline data ships in data.js. Anything you change in the editor is stored
-   as an override, so the original is never lost and a fresh browser sees the
-   shipped version. */
-function years(){
-  const map = new Map();
-  ARCHIVE.forEach(y => map.set(y.year, y));
-  Object.entries(edits).forEach(([yr,v]) => {
-    if(v === null) map.delete(+yr);
-    else map.set(+yr, {year:+yr, district:v.district, pubs:v.pubs});
+/* ---------------- small helpers ---------------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('12p:'+k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('12p:'+k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem('12p:'+k); }catch(e){} }
+};
+const pad = n => String(n).padStart(2, '0');
+const hm = m => pad(Math.floor(m / 60) % 24) + ':' + pad(Math.round(m % 60));
+const toMin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
+const closeMin = t => { const m = toMin(t); return m < 6 * 60 ? m + 24 * 60 : m; };
+const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+function km(a, b){
+  const r = Math.PI / 180, x = Math.sin((b.lat - a.lat) * r / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin((b.lng - a.lng) * r / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(x));
+}
+const walkMins = (a, b) => Math.max(1, Math.round(km(a, b) * 1.2 / 4.5 * 60));
+const mapsLink = p => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ', ' + p.area + ', Dublin') + (p.maps_id ? '&query_place_id=' + p.maps_id : '');
+const photoUrl = path => SB + '/storage/v1/object/public/checkins/' + path;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 3200); }
+
+async function rpc(name, args){
+  const r = await fetch(SB + '/rest/v1/rpc/' + name, {
+    method: 'POST',
+    headers: {'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json'},
+    body: JSON.stringify(args || {})
   });
-  return [...map.values()].sort((a,b)=>a.year-b.year);
+  const body = await r.json().catch(() => null);
+  if(!r.ok){ const e = new Error((body && body.message) || ('HTTP ' + r.status)); e.server = true; throw e; }
+  return body;
+}
+async function upload(path, blob){
+  const r = await fetch(SB + '/storage/v1/object/checkins/' + path, {
+    method: 'POST',
+    headers: {'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'image/jpeg', 'x-upsert': 'false', 'cache-control': '31536000'},
+    body: await blob.arrayBuffer()
+  });
+  if(!r.ok){ const e = new Error('Photo upload failed (' + r.status + ')'); e.server = true; throw e; }
+}
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
+
+/* ---------------- shopfront illustrations ---------------- */
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1), 16);
+  const f = v => Math.max(0, Math.min(255, Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt)));
+  return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(f).map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function hash(s){ let h = 0; for(const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+function shopfront(p, id){
+  const paint = p.paint || '#1F4D3A', dark = shade(paint, -.45), light = shade(paint, .12), h = hash(p.name);
+  const name = (p.name || '').toUpperCase();
+  const fs = Math.min(30, 300 / (0.62 * Math.max(name.length, 6)));
+  const doorX = h % 3 === 0 ? 300 : 182, door2 = doorX === 182;
+  const winA = door2 ? [52, 168] : [52, 236], winB = door2 ? [232, 348] : [244, 288];
+  const panes = 2 + (h % 2);
+  const g = 'g' + id;
+  const win = ([x1, x2]) => {
+    let bars = ''; for(let i = 1; i < panes; i++){ const x = x1 + (x2 - x1) * i / panes; bars += `<line x1="${x}" y1="92" x2="${x}" y2="168" stroke="${dark}" stroke-width="3"/>`; }
+    return `<rect x="${x1}" y="90" width="${x2 - x1}" height="80" fill="url(#${g}w)" stroke="${dark}" stroke-width="4"/>${bars}<line x1="${x1}" y1="116" x2="${x2}" y2="116" stroke="${dark}" stroke-width="3"/><rect x="${x1 - 4}" y="170" width="${x2 - x1 + 8}" height="16" fill="${dark}"/>`;
+  };
+  return `<svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(p.name)} shopfront">
+<defs>
+<linearGradient id="${g}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0A1420"/><stop offset="1" stop-color="#1B1A22"/></linearGradient>
+<radialGradient id="${g}w" cx=".5" cy=".6" r=".8"><stop offset="0" stop-color="#FFE3A3"/><stop offset=".55" stop-color="#E9A74A"/><stop offset="1" stop-color="#5A3410"/></radialGradient>
+<radialGradient id="${g}l" cx=".5" cy="0" r="1"><stop offset="0" stop-color="#FFD27A" stop-opacity=".5"/><stop offset="1" stop-color="#FFD27A" stop-opacity="0"/></radialGradient>
+<linearGradient id="${g}f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${paint}"/></linearGradient>
+</defs>
+<rect width="400" height="200" fill="url(#${g}s)"/>
+<g fill="#F3EAD7" opacity=".5">${[...Array(14)].map((_, i) => `<circle cx="${(h >> i) % 400}" cy="${(i * 37 + h) % 26 + 2}" r="${i % 3 ? .7 : 1.1}"/>`).join('')}</g>
+<rect x="10" y="22" width="380" height="164" fill="#2A2420"/>
+<rect x="20" y="30" width="360" height="156" fill="url(#${g}f)"/>
+<rect x="14" y="26" width="372" height="8" fill="${dark}"/>
+<rect x="30" y="40" width="340" height="40" rx="2" fill="${dark}" stroke="#D4A646" stroke-width="2"/>
+<rect x="34" y="44" width="332" height="32" fill="none" stroke="#D4A646" stroke-opacity=".35"/>
+<text x="200" y="${60 + fs * .36}" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-weight="900" font-size="${fs.toFixed(1)}" letter-spacing="1.5" fill="#F1CF7A">${esc(name)}</text>
+<rect x="24" y="80" width="18" height="106" fill="${light}"/><rect x="358" y="80" width="18" height="106" fill="${light}"/>
+${win(winA)}${win(winB)}
+<rect x="${doorX}" y="90" width="44" height="96" fill="#120E0B" stroke="${dark}" stroke-width="4"/>
+<path d="M${doorX + 4} 104 a18 14 0 0 1 36 0z" fill="url(#${g}w)" opacity=".85"/>
+<rect x="${doorX + 8}" y="112" width="12" height="30" fill="none" stroke="${shade(paint, -.2)}" stroke-width="2"/><rect x="${doorX + 24}" y="112" width="12" height="30" fill="none" stroke="${shade(paint, -.2)}" stroke-width="2"/>
+<circle cx="${doorX + 36}" cy="150" r="2" fill="#D4A646"/>
+<g class="lampglow"><circle cx="40" cy="36" r="5" fill="#FFD27A"/><circle cx="360" cy="36" r="5" fill="#FFD27A"/></g>
+<rect x="0" y="186" width="400" height="14" fill="#141210"/>
+<ellipse cx="200" cy="188" rx="190" ry="14" fill="url(#${g}l)"/>
+</svg>`;
+}
+
+/* ---------------- state ---------------- */
+let email = store.get('email', null);
+let pin = store.get('pin', null);
+let S = store.get('state', null);     // last good crawl_state
+let admin = null;                     // admin_state when unlocked
+let tab = 'route';
+let openStory = new Set();
+let pending = {};                      // slot -> true while queued offline
+
+function plan(){
+  if(!S || !S.route) return [];
+  const start = toMin((S.crawl && S.crawl.start) || '15:30');
+  let t = start;
+  return S.route.map((r, i) => {
+    const len = i < 6 ? 30 : 45;
+    const walk = i ? walkMins(S.route[i - 1].pub, r.pub) : 0;
+    const s = {slot: r.slot, pub: r.pub, swapped_from: r.swapped_from, start: t, end: t + len, walk, inPub: len - walk};
+    t += len;
+    return s;
+  });
+}
+const myCheckins = () => (S && S.checkins || []).filter(c => c.mine);
+const myAt = slot => myCheckins().find(c => c.slot === slot);
+function dayInfo(){
+  const date = (S && S.crawl && S.crawl.date) || '2026-12-02';
+  const days = Math.round((new Date(date + 'T12:00:00') - new Date(todayKey() + 'T12:00:00')) / 864e5);
+  return {date, days, isDay: days === 0};
+}
+const prettyDate = d => new Date(d + 'T12:00:00').toLocaleDateString('en-IE', {weekday: 'long', day: 'numeric', month: 'long'});
+
+/* ---------------- gate ---------------- */
+function showGate(){
+  $('app').hidden = true; $('gate').hidden = false;
+  $('gateArt').innerHTML = shopfront({name: '12 Pubs Of Winter', paint: '#1F4D3A'}, 'gate');
+  const days = Math.round((new Date('2026-12-02T12:00:00') - new Date(todayKey() + 'T12:00:00')) / 864e5);
+  $('gateCount').innerHTML = days > 0 ? `<b>${days}</b> ${days === 1 ? 'day' : 'days'} to go. 15:30 start.` : days === 0 ? '<b>Today.</b> 15:30 start.' : 'Done for another year.';
+  if(email) $('gEmail').value = email;
+}
+$('gateForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const em = $('gEmail').value.trim().toLowerCase(), nm = $('gName').value.trim();
+  const msg = $('gateMsg');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ msg.textContent = 'That doesn\'t look like an email address.'; return; }
+  $('gateBtn').disabled = true; $('gateBtn').textContent = 'Checking the list…'; msg.textContent = '';
+  try{
+    const r = await rpc('join_crawl', {p_email: em, p_name: nm || null});
+    if(!r.ok){ msg.textContent = 'That email isn\'t on the guest list. Ask Kevin to add you, or try the email he has for you.'; return; }
+    email = r.email; store.set('email', email);
+    await refresh(true);
+    showApp();
+  }catch(err){
+    msg.textContent = 'Couldn\'t reach the list. Check your signal and try again.';
+  }finally{
+    $('gateBtn').disabled = false; $('gateBtn').textContent = 'Get in';
+  }
+});
+
+/* ---------------- app ---------------- */
+function showApp(){
+  $('gate').hidden = true; $('app').hidden = false;
+  $('adminTab').hidden = !pin;
+  render();
+}
+async function refresh(quiet){
+  if(!email) return;
+  try{
+    S = await rpc('crawl_state', {p_email: email});
+    store.set('state', S);
+    if(pin){ try{ admin = await rpc('admin_state', {p_pin: pin}); }catch(e){ if(e.server){ admin = null; pin = null; store.del('pin'); } } }
+    if(!quiet) render();
+    flushQueue();
+  }catch(e){
+    if(e.server && /not_on_list/.test(e.message)){ store.del('state'); S = null; email = null; store.del('email'); showGate(); $('gateMsg').textContent = 'You\'ve been taken off the list. 🪓'; return; }
+    if(!quiet){ render(); }
+  }
+}
+function render(){
+  if(!S){ showGate(); return; }
+  renderTop();
+  if(tab === 'route') renderRoute();
+  if(tab === 'board') renderBoard();
+  if(tab === 'map') renderMap();
+  if(tab === 'me') renderMe();
+  if(tab === 'admin') renderAdmin();
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
+  $('adminTab').hidden = !pin;
+}
+function renderTop(){
+  const P = plan(), {date, days, isDay} = dayInfo(), n = new Set(myCheckins().map(c => c.slot)).size + Object.keys(pending).length;
+  $('topDate').textContent = prettyDate(date);
+  const R = 22, C = 2 * Math.PI * R, frac = Math.min(1, n / 12);
+  $('ring').innerHTML = `<svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/><circle cx="26" cy="26" r="${R}" fill="none" stroke="#D4A646" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - frac)}"/></svg><span>${n}/12</span>`;
+  let st = '';
+  if(days > 0) st = `<b>${days} ${days === 1 ? 'day' : 'days'}</b> to go. ${P[0] ? hm(P[0].start) + ' at ' + esc(P[0].pub.name) : ''}`;
+  else if(isDay){
+    const m = nowMin(), cur = P.find(s => m >= s.start && m < s.end);
+    if(cur) st = `Now: <b>${esc(cur.pub.name)}</b> until ${hm(cur.end)}`;
+    else if(P[0] && m < P[0].start) st = `Starts <b>${hm(P[0].start)}</b> at ${esc(P[0].pub.name)}`;
+    else st = `That's the 12. <b>${esc(S.after ? S.after.name : '')}</b> next.`;
+  }else st = 'Done for another year. See you in 2027.';
+  $('topStatus').innerHTML = st;
+}
+
+/* route */
+function card(s, idx, P, now){
+  const p = s.pub, mine = myAt(s.slot), queued = pending[s.slot];
+  const done = !!mine || queued, isNow = idx === now, past = now > idx;
+  const open = openStory.has(s.slot);
+  const chips = [];
+  if(isNow) chips.push('<span class="chip now">Now</span>');
+  if(p.food) chips.push('<span class="chip food">🍲 Food stop</span>');
+  if(s.swapped_from) chips.push(`<span class="chip sub">Sub for ${esc(s.swapped_from)}</span>`);
+  if(s.inPub < 18) chips.push('<span class="chip warn">Order on arrival</span>');
+  chips.push(`<span class="chip">${s.walk ? s.walk + ' min walk · ' : ''}${s.inPub} min inside</span>`);
+  let mineHtml = '';
+  if(mine){
+    mineHtml = `<div class="mine">${mine.photo ? `<img src="${photoUrl(mine.photo)}" alt="Your check-in photo" loading="lazy">` : ''}<div>Checked in ${new Date(mine.at).toTimeString().slice(0, 5)}<br><span class="${mine.located ? 'ok' : 'meh'}">${mine.located ? '📍 At the pub' : '📍 Location not confirmed'}</span></div><button type="button" data-undo="${s.slot}">Undo</button></div>`;
+  }else if(queued){
+    mineHtml = '<div class="mine"><div>Saved on your phone. It sends when you get signal.</div></div>';
+  }
+  return `<article class="card${isNow ? ' now' : ''}${done ? ' done' : ''}${past && !done ? ' past' : ''}" id="slot-${s.slot}">
+    <div class="art">${shopfront(p, 's' + s.slot)}<span class="num">${s.slot}</span><span class="when">${hm(s.start)}</span>${done ? '<span class="stamp">Checked in</span>' : ''}</div>
+    <div class="card-body">
+      <h3>${esc(p.name)}</h3>
+      <p class="aka">${p.aka ? 'Also called ' + esc(p.aka) + ' · ' : ''}${esc(p.area)}</p>
+      <div class="chips">${chips.join('')}</div>
+      ${p.history ? `<p class="story${open ? '' : ' clamp'}">${esc(p.history)}</p><button class="more" type="button" data-story="${s.slot}">${open ? 'Less' : 'The story'}</button>` : ''}
+      ${mineHtml}
+      <div class="actions">
+        ${done ? '' : `<button class="btn primary" type="button" data-checkin="${s.slot}">📸 Check in</button>`}
+        <a class="btn ghost" href="${mapsLink(p)}" target="_blank" rel="noopener">Directions</a>
+      </div>
+    </div>
+  </article>`;
+}
+function renderRoute(){
+  const P = plan(), {days, isDay} = dayInfo(), m = nowMin();
+  const now = isDay ? P.findIndex(s => m >= s.start && m < s.end) : (days < 0 ? 99 : -1);
+  const swapped = P.filter(s => s.swapped_from);
+  let h = '';
+  if(swapped.length) h += `<div class="banner swap">🔁 <div>${swapped.map(s => `<b>${esc(s.swapped_from)}</b> is out. <b>${esc(s.pub.name)}</b> is in at ${hm(s.start)}.`).join('<br>')}</div></div>`;
+  if(days > 0) h += `<div class="banner">🍺 <div>Practice check-ins are fine before the night. Kevin clears them before 2 December.</div></div>`;
+  P.forEach((s, i) => {
+    if(i) h += `<div class="leg">🚶 ${s.walk} min to ${esc(s.pub.name)}</div>`;
+    h += card(s, i, P, now);
+  });
+  const last = P[P.length - 1];
+  if(last) h += `<div class="leg">🕚 ${hm(last.end)} Leave ${esc(last.pub.name)}. That's the 12.</div>`;
+  if(S.after){
+    const a = S.after;
+    h += `<article class="card after"><div class="art">${shopfront(a, 'after')}<span class="num">🎸</span><span class="when">After</span></div><div class="card-body"><p class="eyebrow">After party</p><h3>${esc(a.name)}</h3><p class="aka">${esc(a.area)} · open until ${esc(a.closes)}</p>${a.history ? `<p class="story">${esc(a.history)}</p>` : ''}<div class="actions"><a class="btn ghost" href="${mapsLink(a)}" target="_blank" rel="noopener">Directions</a></div></div></article>`;
+  }
+  if(S.subs && S.subs.length){
+    h += '<h2 class="section-h">The subs bench</h2><div class="subs">' + S.subs.map((p, i) => `<div class="sub-card"><div class="mini">${shopfront(p, 'sub' + i)}</div><div><b>${esc(p.name)}</b><span>${esc(p.area)} · ${esc(p.opens)} to ${esc(p.closes)}</span><p class="story" style="margin-top:4px;font-size:13px">${esc(p.history || '')}</p></div></div>`).join('') + '</div><p class="fine">Used if a pub is shut, full or has barred us. Kevin swaps them in and everyone\'s app updates.</p>';
+  }
+  $('v-route').innerHTML = h;
+}
+
+/* board */
+function renderBoard(){
+  const cs = S.checkins || [], people = S.people || [];
+  const by = {};
+  people.forEach(p => { by[p.who] = {who: p.who, me: p.me, slots: new Set(), last: null}; });
+  cs.forEach(c => { const b = by[c.who] || (by[c.who] = {who: c.who, me: c.mine, slots: new Set(), last: null}); b.slots.add(c.slot); if(!b.last || c.at > b.last.at) b.last = c; });
+  const rows = Object.values(by).sort((a, b) => b.slots.size - a.slots.size || ((b.last && b.last.at) || '').localeCompare((a.last && a.last.at) || '') * -1 || a.who.localeCompare(b.who));
+  let h = '<h2 class="section-h" style="margin-top:0">The board</h2><div class="leader">';
+  rows.forEach((r, i) => {
+    const n = r.slots.size;
+    h += `<div class="lrow${r.me ? ' me' : ''}"><span class="pos">${n ? i + 1 : '–'}</span><span class="who">${esc(r.who)}${r.me ? ' (you)' : ''}<span class="at">${r.last ? 'Last seen: ' + esc(r.last.pub) + ' at ' + new Date(r.last.at).toTimeString().slice(0, 5) : 'Not started'}</span></span><span class="n">${n}</span><span class="bar"><i style="width:${n / 12 * 100}%"></i></span></div>`;
+  });
+  h += '</div><h2 class="section-h">The evidence</h2>';
+  if(!cs.length) h += '<div class="empty">No check-ins yet. First photo gets the bragging rights.</div>';
+  else h += '<div class="feed">' + cs.map(c => `<figure class="shot" style="margin:0">${c.photo ? `<img src="${photoUrl(c.photo)}" alt="${esc(c.who)} at ${esc(c.pub)}" loading="lazy">` : '<div class="noimg">🍺</div>'}<p><b>${esc(c.who)}</b>${esc(c.pub)} · ${new Date(c.at).toTimeString().slice(0, 5)}<br><span class="${c.located ? 'ok' : 'meh'}">${c.located ? '📍 at the pub' : '📍 not confirmed'}</span></p></figure>`).join('') + '</div>';
+  $('v-board').innerHTML = h;
+}
+
+/* map */
+let map = null, mapLayer = null, meMarker = null, watchId = null;
+function renderMap(){
+  if(!window.L){ $('map').innerHTML = '<p class="empty" style="margin:16px">The map needs signal to load.</p>'; return; }
+  if(!map){
+    map = L.map('map', {zoomControl: false});
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '&copy; OpenStreetMap', maxZoom: 19, className: 'darkmap'}).addTo(map);
+    mapLayer = L.layerGroup().addTo(map);
+  }
+  mapLayer.clearLayers();
+  const P = plan(), {isDay} = dayInfo(), m = nowMin();
+  const now = isDay ? P.findIndex(s => m >= s.start && m < s.end) : -1;
+  L.polyline(P.map(s => [s.pub.lat, s.pub.lng]), {color: '#D4A646', weight: 4, opacity: .9, dashArray: '1 8', lineCap: 'round'}).addTo(mapLayer);
+  (S.subs || []).forEach(p => L.marker([p.lat, p.lng], {icon: L.divIcon({className: '', iconSize: [14, 14], iconAnchor: [7, 7], html: '<div class="pin sub"></div>'})}).bindPopup('<b>' + esc(p.name) + '</b><br>Sub').addTo(mapLayer));
+  P.forEach((s, i) => {
+    const cls = i === now ? 'now' : (myAt(s.slot) ? 'done' : '');
+    L.marker([s.pub.lat, s.pub.lng], {zIndexOffset: i === now ? 1000 : i, icon: L.divIcon({className: '', iconSize: [26, 26], iconAnchor: [13, 13], html: `<div class="pin ${cls}">${s.slot}</div>`})})
+      .bindPopup(`<b>${esc(s.pub.name)}</b><br>${hm(s.start)} to ${hm(s.end)}`).addTo(mapLayer);
+  });
+  setTimeout(() => { map.invalidateSize(); if(!renderMap.fitted){ map.fitBounds(P.map(s => [s.pub.lat, s.pub.lng]), {padding: [30, 30]}); renderMap.fitted = true; } }, 60);
+}
+$('locate').addEventListener('click', () => {
+  if(!navigator.geolocation){ toast('Your phone won\'t share its location.'); return; }
+  if(watchId !== null) return;
+  watchId = navigator.geolocation.watchPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if(!meMarker) meMarker = L.marker(ll, {icon: L.divIcon({className: '', iconSize: [16, 16], iconAnchor: [8, 8], html: '<div class="me-dot"></div>'})}).addTo(map);
+    else meMarker.setLatLng(ll);
+    if(!$('locate').dataset.done){ map.setView(ll, 16); $('locate').dataset.done = 1; $('locate').textContent = 'Following you'; }
+  }, () => toast('Couldn\'t get your location. Check location is allowed for this site.'), {enableHighAccuracy: true, maximumAge: 15000});
+});
+
+/* me */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if(tab === 'me') renderMe(); });
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+function renderMe(){
+  const me = S.me || {};
+  let h = `<div class="panel"><p class="eyebrow">You</p><h2>${esc(me.name || 'No name yet')}</h2><p style="color:var(--dim)">${esc(me.email)}</p>
+    <div class="field"><label for="meName">Name on the board</label><input id="meName" value="${esc(me.name || '')}" maxlength="40"></div>
+    <div class="row"><button class="btn small" id="meSave" type="button">Save name</button><button class="btn small ghost" id="meOut" type="button">Sign out</button></div></div>`;
+  if(!standalone()){
+    h += `<div class="panel"><h2>Put it on your home screen</h2>${installEvt ? '<p>One tap and it opens like an app, full screen.</p><button class="btn primary" id="install" type="button">Install the app</button>'
+      : isIOS ? '<p>In Safari, tap the Share button <b>⬆︎</b>, then <b>Add to Home Screen</b>. It opens full screen like an app.</p>'
+      : '<p>Open your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>.</p>'}</div>`;
+  }
+  h += `<div class="panel"><h2>Running the night?</h2><p>Enter the admin PIN to manage the guest list and swap pubs.</p>
+    <div class="field"><label for="pinIn">Admin PIN</label><input id="pinIn" type="password" autocomplete="off" autocapitalize="off"></div>
+    <button class="btn small" id="pinGo" type="button">${pin ? 'Unlocked ✓' : 'Unlock'}</button> <span class="fine" id="pinMsg"></span></div>`;
+  $('v-me').innerHTML = h;
+  $('meSave').onclick = async () => { try{ await rpc('join_crawl', {p_email: email, p_name: $('meName').value}); toast('Saved.'); refresh(); }catch(e){ toast('Couldn\'t save. Try again with signal.'); } };
+  $('meOut').onclick = () => { store.del('email'); store.del('state'); store.del('pin'); email = null; S = null; pin = null; showGate(); };
+  if($('install')) $('install').onclick = async () => { installEvt.prompt(); await installEvt.userChoice; installEvt = null; renderMe(); };
+  $('pinGo').onclick = async () => {
+    const v = $('pinIn').value.trim(); if(!v) return;
+    try{ admin = await rpc('admin_state', {p_pin: v}); pin = v; store.set('pin', v); $('adminTab').hidden = false; toast('Admin unlocked.'); go('admin'); }
+    catch(e){ $('pinMsg').textContent = e.server ? 'Wrong PIN. Too many wrong tries locks it for an hour.' : 'No signal.'; }
+  };
+}
+
+/* admin */
+let archMap = null, archLayer = null, archYear = null, confirmClear = false, confirmRemove = null;
+function renderAdmin(){
+  if(!pin){ go('me'); return; }
+  if(!admin){ $('v-admin').innerHTML = '<div class="empty">Loading…</div>'; refresh(); return; }
+  const P = plan(), used = new Set(P.map(s => s.pub.name));
+  const subsAll = admin.subs_all || [];
+  let h = `<div class="panel"><p class="eyebrow">Guest list · ${admin.guests.length}</p><h2>Who gets in</h2>
+    <div class="field"><label for="aName">Name</label><input id="aName" maxlength="40" placeholder="Optional"></div>
+    <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" inputmode="email" placeholder="name@example.com"></div>
+    <div class="row"><button class="btn small primary" id="aAdd" type="button">Add to the list</button><button class="btn small ghost" id="aInvite" type="button">Copy invite message</button></div>
+    <div class="glist">${admin.guests.map(g => `<div class="gitem"><span>${esc(g.name || '–')} <small>${esc(g.email)} · ${g.checkins} in</small></span>${confirmRemove === g.email ? `<button class="btn small danger" data-rm="${esc(g.email)}" type="button">Axe ${esc(g.name || 'them')}?</button>` : `<button class="btn small ghost" data-rmask="${esc(g.email)}" type="button">🪓</button>`}</div>`).join('')}</div></div>`;
+  h += `<div class="panel"><p class="eyebrow">On the night</p><h2>Swap a pub</h2><p>Everyone's app picks up the change within 20 seconds.</p>${P.map(s => {
+      const orig = s.swapped_from || s.pub.name;
+      const opts = [`<option value="">${esc(orig)}${s.swapped_from ? ' (put back)' : ''}</option>`].concat(subsAll.map(sb => {
+        const isHere = s.pub.id === sb.id, inUse = used.has(sb.name) && !isHere, early = toMin(sb.opens) > s.start;
+        return `<option value="${sb.id}" ${isHere ? 'selected' : ''} ${inUse || early ? 'disabled' : ''}>${esc(sb.name)}${inUse ? ' (in use)' : early ? ' (opens ' + sb.opens + ')' : ''}</option>`;
+      }));
+      return `<div class="swaprow"><span class="n">${s.slot}</span><select data-swap="${s.slot}" aria-label="Stop ${s.slot}">${opts.join('')}</select></div>`;
+    }).join('')}</div>`;
+  h += `<div class="panel"><h2>Check-ins</h2><p>${(S.checkins || []).length} ${(S.checkins || []).length === 1 ? 'check-in' : 'check-ins'} so far. Clear the practice ones before the night.</p>${confirmClear ? '<div class="confirm"><p>This deletes every check-in for everyone. Photos stay stored but drop off the board.</p><div class="row"><button class="btn small danger" id="clearYes" type="button">Yes, clear them all</button><button class="btn small ghost" id="clearNo" type="button">Keep them</button></div></div>' : '<button class="btn small danger" id="clearAsk" type="button">Clear all check-ins</button>'}</div>`;
+  h += `<div class="panel"><p class="eyebrow">Only you see this</p><h2>The MasterList</h2><div class="years">${admin.archive.map(y => `<button type="button" data-year="${y.year}" aria-pressed="${archYear === y.year}">${y.year}</button>`).join('')}</div><div id="archMap"></div><div class="arch-list" id="archList"></div></div>`;
+  h += `<button class="btn small ghost" id="lock" type="button">Lock admin on this phone</button>`;
+  $('v-admin').innerHTML = h;
+
+  $('aAdd').onclick = async () => {
+    const em = $('aEmail').value.trim().toLowerCase();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Check the email.'); return; }
+    try{ await rpc('admin_guest', {p_pin: pin, p_email: em, p_name: $('aName').value, p_remove: false}); toast('Added ' + em); await refresh(); }catch(e){ toast(e.server ? e.message : 'No signal.'); }
+  };
+  $('aInvite').onclick = () => copy(`12 Pubs Of Winter. Wednesday 2 December, 15:30.\nRoute, check-ins and the board are here, guests only: ${SITE}\nUse the email I have for you. Can't make it? 🪓`);
+  document.querySelectorAll('[data-rmask]').forEach(b => b.onclick = () => { confirmRemove = b.dataset.rmask; renderAdmin(); });
+  document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.rm, p_name: null, p_remove: true}); confirmRemove = null; toast('Axed. 🪓'); await refresh(); }catch(e){ toast('Couldn\'t remove.'); } });
+  document.querySelectorAll('[data-swap]').forEach(sel => sel.onchange = async () => {
+    try{ await rpc('admin_swap', {p_pin: pin, p_slot: +sel.dataset.swap, p_pub_id: sel.value || null}); toast(sel.value ? 'Swapped. Everyone\'s app updates shortly.' : 'Put back.'); await refresh(); }
+    catch(e){ toast(e.server ? 'Couldn\'t swap: ' + e.message : 'No signal.'); render(); }
+  });
+  if($('clearAsk')) $('clearAsk').onclick = () => { confirmClear = true; renderAdmin(); };
+  if($('clearNo')) $('clearNo').onclick = () => { confirmClear = false; renderAdmin(); };
+  if($('clearYes')) $('clearYes').onclick = async () => { try{ await rpc('admin_clear_checkins', {p_pin: pin}); confirmClear = false; toast('All check-ins cleared.'); await refresh(); }catch(e){ toast('Couldn\'t clear.'); } };
+  document.querySelectorAll('[data-year]').forEach(b => b.onclick = () => { archYear = archYear === +b.dataset.year ? null : +b.dataset.year; renderAdmin(); });
+  $('lock').onclick = () => { pin = null; admin = null; store.del('pin'); go('route'); };
+  drawArchive();
 }
 const YEAR_HUE = {2011:198,2012:14,2013:262,2014:40,2015:330,2017:150,2018:24,2019:210,2021:100,2022:284,2023:52,2024:172,2025:0};
-const yearColour = y => `hsl(${YEAR_HUE[y]??0} 62% 58%)`;
-const norm = s => s.toLowerCase().replace(/^the\s+/,'').replace(/[^a-z0-9]/g,'');
-
-/* Clash detection runs at two levels, because Dublin reuses pub names.
-   exact  — same name including any "(Ringsend)" style disambiguator. Blocks.
-   loose  — same base name, different place. Warns only. Cleary's of Inchicore
-            and Cleary's of Amiens Street are not the same pub. */
-const base = s => norm(s.split('—')[0].split('(')[0]);
-function clash(name){
-  const e = norm(name), b = base(name);
-  let loose = null;
-  for(const y of years()) for(const p of y.pubs){
-    if(norm(p[0]) === e) return {level:'exact', year:y.year, name:p[0]};
-    if(base(p[0]) === b) loose = {level:'loose', year:y.year, name:p[0]};
-  }
-  return loose;
-}
-const usedYear = n => { const c = clash(n); return c && c.level==='exact' ? c.year : null; };
-
-function haversine(a,b,c,d){
-  const R=6371, r=Math.PI/180;
-  const dLat=(c-a)*r, dLon=(d-b)*r;
-  const x=Math.sin(dLat/2)**2 + Math.cos(a*r)*Math.cos(c*r)*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(x));
-}
-// Straight line x 1.2 for the way Dublin streets actually run.
-const DETOUR = 1.2;
-const walkMins = (p,q,kmh) => Math.max(1, Math.round(haversine(p.lat,p.lng,q.lat,q.lng)*DETOUR/kmh*60));
-const hm = m => String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(Math.round(m%60)).padStart(2,'0');
-const toMin = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
-const decToMin = d => Math.round(d*60);
-
-/* ============================ map ============================ */
-const map = L.map('map',{zoomControl:true, preferCanvas:false}).setView([53.3560,-6.2560], 13);
-// OSM tiles, darkened in CSS (.darkmap) — no API key needed.
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  attribution:'&copy; OpenStreetMap contributors', maxZoom:19, className:'darkmap'
-}).addTo(map);
-
-const note = L.DomUtil.create('div','mapnote');
-note.innerHTML = '<b>Amber, dashed</b> — location is my guess. Drag it right and it saves.';
-map.getContainer().appendChild(note);
-
-const archiveLayer = L.layerGroup().addTo(map);
-const routeLayer   = L.layerGroup().addTo(map);
-const shown = new Set(ARCHIVE.map(y=>y.year));
-const CENTRE = {lat:53.3470, lng:-6.2590};   // O'Connell Bridge
-const isCityCentre = p => haversine(CENTRE.lat, CENTRE.lng, p.lat, p.lng) <= 1.2;
-
-function pinIcon(colour, unverified, label){
-  const size = label ? 22 : 13;
-  return L.divIcon({
-    className:'', iconSize:[size,size], iconAnchor:[size/2,size/2],
-    html:`<div class="pin ${unverified?'unv':''} ${label?'num':''}" style="width:${size}px;height:${size}px;background:${colour}">${label||''}</div>`
-  });
-}
-
-function key(year,name){ return year+'|'+name; }
-function coordsOf(year, p){
-  const m = moved[key(year,p[0])];
-  return m ? {lat:m[0], lng:m[1]} : {lat:p[1], lng:p[2]};
-}
-
 function drawArchive(){
-  archiveLayer.clearLayers();
-  years().forEach(y=>{
-    if(!shown.has(y.year)) return;
-    const col = yearColour(y.year);
-    const pts = y.pubs.map(p=>coordsOf(y.year,p));
-    L.polyline(pts.map(c=>[c.lat,c.lng]),{color:col,weight:2,opacity:.5}).addTo(archiveLayer);
-    y.pubs.forEach((p,i)=>{
-      const c = coordsOf(y.year,p);
-      const unv = !p[3] && !moved[key(y.year,p[0])];
-      const mk = L.marker([c.lat,c.lng],{
-        icon:pinIcon(unv?'var(--amber)':col, unv), draggable:unv, title:p[0]
-      }).addTo(archiveLayer);
-      mk.bindPopup(
-        `<b>${p[0]}</b><br>${y.year} &middot; stop ${i+1} &middot; ${y.district}` +
-        (unv ? '<br><em>Guessed location — drag the pin to fix it</em>' : '')
-      );
-      if(unv) mk.on('dragend', e=>{
-        const ll = e.target.getLatLng();
-        moved[key(y.year,p[0])] = [ll.lat, ll.lng];
-        LS.set('moved', moved); drawArchive(); buildLedger();
-      });
-    });
+  if(!window.L) return;
+  archMap = L.map('archMap', {zoomControl: false, attributionControl: false});
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, className: 'darkmap'}).addTo(archMap);
+  const years = admin.archive.filter(y => archYear === null || y.year === archYear), pts = [];
+  years.forEach(y => {
+    const col = `hsl(${YEAR_HUE[y.year] ?? (y.year * 37) % 360} 62% 58%)`;
+    L.polyline(y.pubs.map(p => [p.lat, p.lng]), {color: col, weight: 2, opacity: .6}).addTo(archMap);
+    y.pubs.forEach((p, i) => { pts.push([p.lat, p.lng]); L.marker([p.lat, p.lng], {icon: L.divIcon({className: '', iconSize: [12, 12], iconAnchor: [6, 6], html: `<div class="pin yr" style="background:${col}"></div>`})}).bindPopup(`<b>${esc(p.name)}</b><br>${y.year} · stop ${i + 1}`).addTo(archMap); });
   });
+  if(pts.length) archMap.fitBounds(pts, {padding: [16, 16]});
+  const total = admin.archive.reduce((a, y) => a + y.pubs.length, 0);
+  $('archList').innerHTML = archYear === null ? `${admin.archive.length} crawls, ${total} pubs. Tap a year to see its route.`
+    : (y => `<b>${y.year} · ${esc(y.district)}</b><ol>${y.pubs.map(p => '<li>' + esc(p.name) + '</li>').join('')}</ol>`)(admin.archive.find(y => y.year === archYear));
+}
+async function copy(text){
+  try{ await navigator.clipboard.writeText(text); toast('Copied. Paste it into the group.'); }
+  catch(e){ window.prompt('Copy this:', text); }
 }
 
-function buildLedger(){
-  const el = document.getElementById('ledger'); el.innerHTML='';
-  let amber=0, total=0;
-  years().forEach(y=>{
-    const unv = y.pubs.filter(p=>!p[3] && !moved[key(y.year,p[0])]).length;
-    amber+=unv; total+=y.pubs.length;
-    const b=document.createElement('button');
-    b.className='yr'; b.dataset.off = shown.has(y.year)?'0':'1';
-    b.innerHTML = `<span class="swatch" style="background:${yearColour(y.year)}"></span>`+
-      `<span class="y">${y.year}</span><span class="d">${y.district}</span>`+
-      `<span class="n">${unv?unv+' amber':'✓'}</span>`;
-    b.onclick = ()=>{ shown.has(y.year)?shown.delete(y.year):shown.add(y.year); drawArchive(); buildLedger(); };
-    el.appendChild(b);
-  });
-  document.getElementById('tally').textContent =
-    `${total} pubs · ${total-amber} pinned · ${amber} to confirm`;
-  document.getElementById('yearsNote').textContent =
-    `${shown.size} of ${years().length} on the map`;
+/* ---------------- check-in ---------------- */
+let sheetSlot = null, sheetBlob = null, sheetPos = null;
+function openSheet(slot){
+  const s = plan().find(x => x.slot === slot); if(!s) return;
+  sheetSlot = slot; sheetBlob = null; sheetPos = null;
+  $('sheetSlot').textContent = 'Pub ' + slot + ' of 12 · ' + hm(s.start);
+  $('sheetTitle').textContent = s.pub.name;
+  $('photoPrev').hidden = true; $('photoHint').hidden = false; $('photo').value = '';
+  $('sheetGo').disabled = true; $('sheetMsg').textContent = '';
+  $('sheet').hidden = false;
+  const loc = $('loc');
+  if(!navigator.geolocation){ loc.innerHTML = '📍 Your phone won\'t share location. The photo will do.'; return; }
+  loc.innerHTML = '📍 Checking where you are…';
+  navigator.geolocation.getCurrentPosition(pos => {
+    if(sheetSlot !== slot) return;
+    sheetPos = pos.coords;
+    const d = Math.round(km({lat: pos.coords.latitude, lng: pos.coords.longitude}, s.pub) * 1000);
+    const ok = d <= 120 + Math.min(pos.coords.accuracy || 0, 80);
+    loc.innerHTML = ok ? `<span class="ok">📍 You're at the pub (${d}m)</span>` : `<span class="meh">📍 You look ${d > 999 ? (d / 1000).toFixed(1) + 'km' : d + 'm'} away. You can still check in, but the board will show it as not confirmed.</span>`;
+  }, () => { if(sheetSlot === slot) loc.innerHTML = '<span class="meh">📍 Couldn\'t get your location. The photo still counts; the board shows it as not confirmed.</span>'; },
+  {enableHighAccuracy: true, timeout: 15000, maximumAge: 30000});
 }
-
-document.getElementById('allOn').onclick = ()=>{ years().forEach(y=>shown.add(y.year)); drawArchive(); buildLedger(); };
-document.getElementById('allOff').onclick= ()=>{ shown.clear(); drawArchive(); buildLedger(); };
-document.getElementById('amberOnly').onclick = ()=>{
-  shown.clear();
-  years().forEach(y=>{ if(y.pubs.some(p=>!p[3] && !moved[key(y.year,p[0])])) shown.add(y.year); });
-  drawArchive(); buildLedger();
-};
-
-/* ============================ planner ============================ */
-const picker=document.getElementById('picker'), q=document.getElementById('q');
-
-function candidateList(){
-  const side=document.getElementById('side').value;
-  const term=norm(q.value);
-  return CANDIDATES
-    .filter(c=>!side||c[5]===side)
-    .filter(c=>!term||norm(c[0]).includes(term)||norm(c[6]).includes(term))
-    .slice(0,60);
-}
-function drawPicker(){
-  picker.innerHTML='';
-  const inRoute=new Set(route.map(r=>norm(r.name)));
-  candidateList().forEach(c=>{
-    const cl=clash(c[0]), hard=cl&&cl.level==='exact';
-    const b=document.createElement('button');
-    b.className='pick'+(hard?' used':'')+(inRoute.has(norm(c[0]))?' picked':'');
-    b.innerHTML=`<span>${c[0]}</span><span class="area">${hard?'done '+cl.year:c[6]}</span>`;
-    b.onclick=()=>{
-      if(hard && !confirm(`${c[0]} was on the ${cl.year} crawl. Add it anyway?`)) return;
-      route.push({name:c[0],lat:c[1],lng:c[2],open:c[3],close:c[4]});
-      save(); render();
-    };
-    picker.appendChild(b);
-  });
-  if(!picker.children.length) picker.innerHTML='<div style="padding:10px;font-size:13px;color:var(--cream-dim)">Nothing matches. Click the map to drop a stop instead.</div>';
-}
-q.oninput=drawPicker;
-document.getElementById('side').onchange=drawPicker;
-
-map.on('click', e=>{
-  if(document.getElementById('p-plan').classList.contains('on')===false) return;
-  if(isLocked()) return;
-  const n=prompt('Name of this pub');
-  if(!n) return;
-  const cl=clash(n);
-  if(cl && cl.level==='exact' && !confirm(`${n} was on the ${cl.year} crawl. Add it anyway?`)) return;
-  if(cl && cl.level==='loose' && !confirm(`A pub called ${cl.name} was done in ${cl.year}. If this is a different house, carry on.`)) return;
-  route.push({name:n,lat:e.latlng.lat,lng:e.latlng.lng,open:-1,close:-1,custom:true});
-  save(); render();
+function closeSheet(){ $('sheet').hidden = true; sheetSlot = null; }
+$('sheetCancel').onclick = closeSheet;
+$('sheet').addEventListener('click', e => { if(e.target === $('sheet')) closeSheet(); });
+$('photo').addEventListener('change', async () => {
+  const f = $('photo').files[0]; if(!f) return;
+  $('sheetMsg').textContent = 'Shrinking the photo…';
+  try{
+    sheetBlob = await compress(f);
+    $('photoPrev').src = URL.createObjectURL(sheetBlob); $('photoPrev').hidden = false; $('photoHint').hidden = true;
+    $('sheetGo').disabled = false; $('sheetMsg').textContent = '';
+  }catch(e){ $('sheetMsg').textContent = 'That photo didn\'t work. Try another.'; }
 });
-
-function computeSlots(){
-  const kmh=parseFloat(document.getElementById('pace').value);
-  const start=toMin(document.getElementById('startT').value);
-  let t=start; const out=[];
-  route.forEach((p,i)=>{
-    const len = i<6 ? 30 : 45;
-    const walk = i===0 ? 0 : walkMins(route[i-1],p,kmh);
-    const arrive = t+walk;
-    const leave  = t+len;
-    out.push({...p, i, len, walk, arrive, leave, inPub: len-walk});
-    t = leave;
-  });
-  return {slots:out, finish:t, start};
+async function compress(file){
+  let img;
+  try{ img = await createImageBitmap(file, {imageOrientation: 'from-image'}); }
+  catch(e){ img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); }); }
+  const max = 1280, w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return await new Promise(res => c.toBlob(res, 'image/jpeg', .74));
 }
-
-function render(){
-  drawPicker();
-  const {slots,finish}=computeSlots();
-  const closeM=toMin(document.getElementById('closeT').value);
-
-  // map
-  routeLayer.clearLayers();
-  if(slots.length){
-    L.polyline(slots.map(s=>[s.lat,s.lng]),{color:'var(--gilt)',weight:3,opacity:.9,dashArray:'1 6',lineCap:'round'}).addTo(routeLayer);
-    slots.forEach(s=>{
-      L.marker([s.lat,s.lng],{icon:pinIcon('#C89B3C',false,String(s.i+1))})
-        .bindPopup(`<b>${s.name}</b><br>Slot ${s.i+1} · arrive ${hm(s.arrive)} · ${s.inPub} min in the pub`)
-        .addTo(routeLayer);
-    });
+$('sheetGo').addEventListener('click', async () => {
+  if(!sheetBlob || sheetSlot === null) return;
+  const job = {slot: sheetSlot, blob: sheetBlob, lat: sheetPos ? sheetPos.latitude : null, lng: sheetPos ? sheetPos.longitude : null, acc: sheetPos ? sheetPos.accuracy : null};
+  $('sheetGo').disabled = true; $('sheetMsg').textContent = 'Sending…';
+  try{
+    await sendCheckin(job);
+    closeSheet(); toast('Checked in. 🍺'); await refresh();
+  }catch(e){
+    if(e.server){ $('sheetMsg').textContent = 'That didn\'t go through: ' + e.message; $('sheetGo').disabled = false; return; }
+    await queuePut(job); pending[job.slot] = true; closeSheet(); toast('No signal. Saved on your phone; it sends when you\'re back online.'); render();
   }
-
-  // table
-  const tb=document.getElementById('slots');
-  if(!slots.length){ tb.innerHTML='<p class="note" style="margin-top:14px">No stops yet.</p>'; document.getElementById('verdict').innerHTML=''; return; }
-  let html='<table><thead><tr><th>Leave</th><th>Pub</th><th style="text-align:right">Walk</th><th style="text-align:right">Pub</th><th></th></tr></thead><tbody>';
-  slots.forEach((s,idx)=>{
-    let flags='';
-    if(idx===slots.length-1 && slots.length>1 && !isCityCentre(s)){
-      const km = haversine(CENTRE.lat,CENTRE.lng,s.lat,s.lng).toFixed(1);
-      flags += `<span class="bad">Last stop is ${km}km from the centre — finish closer in</span>`;
-    }
-    if(s.inPub < 12) flags += `<span class="bad">Only ${s.inPub} min inside — too tight</span>`;
-    else if(s.inPub < 18) flags += `<span class="warn">${s.inPub} min inside — order on arrival</span>`;
-    if(s.open===-1 && !s.custom) flags += `<span class="bad">Closed Wednesdays</span>`;
-    else if(s.open>0 && s.arrive < decToMin(s.open)) flags += `<span class="warn">Opens ${hm(decToMin(s.open))} — you're ${decToMin(s.open)-s.arrive} min early</span>`;
-    if(s.close>0 && s.leave > decToMin(s.close)) flags += `<span class="bad">Shuts ${hm(decToMin(s.close))} before you leave</span>`;
-    if(s.swappedFrom) flags += `<span class="warn">Sub for ${s.swappedFrom}</span>`;
-    const cl=clash(s.name);
-    if(cl && cl.level==='exact') flags += `<span class="bad">Already drunk — ${cl.year}</span>`;
-    else if(cl) flags += `<span class="warn">Name clash with ${cl.name}, ${cl.year} — check it's a different house</span>`;
-    html += `<tr class="${s.len===30?'slot30':''}"><td class="t">${hm(s.leave-s.len)}</td>`+
-      `<td><span class="pubname">${s.name}</span><span class="sub">slot ${s.i+1} · ${s.len} min${isFoodStop(s)?' · food stop':''}</span>${flags}</td>`+
-      `<td class="m">${s.walk||'—'}</td><td class="m">${s.inPub}</td>`+
-      `<td><button class="x" data-i="${s.i}" title="Remove">✕</button></td></tr>`;
-  });
-  html+='</tbody></table>';
-  tb.innerHTML=html;
-  tb.querySelectorAll('.x').forEach(b=>b.onclick=()=>{ route.splice(+b.dataset.i,1); save(); render(); });
-
-  // verdict
-  const over = finish - closeM;
-  const totalWalk = slots.reduce((a,s)=>a+s.walk,0);
-  const avg = Math.round(slots.reduce((a,s)=>a+s.inPub,0)/slots.length);
-  const v=document.getElementById('verdict');
-  v.className = 'verdict' + (over>0 ? ' fail':'');
-  v.innerHTML = `<strong>${hm(finish)}</strong>`+
-    (over>0 ? `${over} min past last orders. Cut a stop or start earlier.`
-            : `${-over} min to spare. ${slots.length} of 12 stops.`)+
-    `<div class="sub" style="margin-top:6px">${totalWalk} min walking · ${avg} min average in the pub</div>`;
-}
-
-function save(){
-  LS.set('route',route);
-  LS.set('startT',document.getElementById('startT').value);
-  LS.set('closeT',document.getElementById('closeT').value);
-}
-document.getElementById('startT').onchange=()=>{save();render();};
-document.getElementById('closeT').onchange=()=>{save();render();};
-document.getElementById('pace').onchange=render;
-document.getElementById('clearRoute').onclick=()=>{ if(confirm('Clear the whole route?')){ route=[]; save(); render(); } };
-document.getElementById('toNight').onclick=()=>{ tab('night'); };
-
-/* ============================ saved routes ============================ */
-const isFoodStop = p => SAVED_ROUTES.some(r=>r.foodStop===p.name||r.foodStop===p.swappedFrom);
-const lockedRoute = SAVED_ROUTES.find(r=>r.locked);
-let unlocked = LS.get('unlocked',false);
-const isLocked = () => !!lockedRoute && !unlocked;
-function applyLock(){ document.getElementById('p-plan').classList.toggle('locked',isLocked()); }
-
-/* Swaps keep the slot and its times. The walk and the time inside recalculate. */
-function candidateStop(name){
-  const c=CANDIDATES.find(c=>c[0]===name);
-  return c ? {name:c[0],lat:c[1],lng:c[2],open:c[3],close:c[4]} : null;
-}
-function swapStop(i,subName){
-  const next=candidateStop(subName); if(!next) return;
-  route[i]={...next, swappedFrom:route[i].swappedFrom||route[i].name};
-  swapOpen=null; save(); render(); renderNight();
-}
-function unswapStop(i){
-  const orig=candidateStop(route[i].swappedFrom); if(!orig) return;
-  route[i]=orig;
-  swapOpen=null; save(); render(); renderNight();
-}
-function groupUpdate(){
-  const r=lockedRoute;
-  const {slots}=computeSlots();
-  const done=slots.filter(s=>s.swappedFrom);
-  const hash=done.map(s=>(s.i+1)+'-'+r.subKeys[s.name]).join(',');
-  return '🪓 '+done.map(s=>`${s.swappedFrom} is out. ${s.name} is in at ${hm(s.leave-s.len)}.`).join('\n')+'\nNew route: '+r.page+'#swap='+hash;
-}
-function savedStops(names){
-  return names.map(n=>CANDIDATES.find(c=>c[0]===n)).filter(Boolean)
-    .map(c=>({name:c[0],lat:c[1],lng:c[2],open:c[3],close:c[4]}));
-}
-function loadSaved(r){
-  route=savedStops(r.stops);
-  document.getElementById('startT').value=r.start;
-  save(); render();
-}
-function drawSaved(){
-  const el=document.getElementById('savedRoutes');
-  el.innerHTML='<label>'+(isLocked()?'Locked for '+lockedRoute.date:'Saved routes')+'</label>';
-  SAVED_ROUTES.forEach(r=>{
-    const b=document.createElement('button');
-    b.className='btn ghost';
-    b.textContent=isLocked()?'Reset to the locked route':'Load '+r.label;
-    b.onclick=()=>{
-      if(route.length && !confirm(isLocked()?'Undo any swaps and go back to the locked route?':`Replace the ${route.length}-stop route in the planner?`)) return;
-      loadSaved(r);
-    };
-    el.appendChild(b);
-    if(r.subs && r.subs.length){
-      const n=document.createElement('p');
-      n.className='note';
-      n.textContent=(r.foodStop?'Food: '+r.foodStop+'. ':'')+'Subs: '+r.subs.join(', ')+'.'+(r.after?' After party: '+r.after.name+'.':'');
-      el.appendChild(n);
-    }
-  });
-  if(lockedRoute){
-    const m=document.createElement('button');
-    m.className='mini';
-    m.textContent=unlocked?'Lock the route again':'Unlock to edit';
-    m.onclick=()=>{
-      unlocked=!unlocked; LS.set('unlocked',unlocked);
-      applyLock(); drawSaved(); render();
-    };
-    el.appendChild(m);
-  }
-}
-
-/* ============================ night ============================ */
-let swapOpen=null;
-function swapControls(s){
-  const wrap=document.createElement('div');
-  wrap.className='swapbar';
-  const onRoute=new Set(route.map(r=>r.name));
-  if(s.swappedFrom){
-    const b=document.createElement('button');
-    b.className='mini'; b.textContent=`Put ${s.swappedFrom} back`;
-    b.onclick=()=>unswapStop(s.i);
-    wrap.appendChild(b);
-    return wrap;
-  }
-  const t=document.createElement('button');
-  t.className='mini'; t.textContent=swapOpen===s.i?'Cancel':'Swap this pub';
-  t.onclick=()=>{ swapOpen=swapOpen===s.i?null:s.i; renderNight(); };
-  wrap.appendChild(t);
-  if(swapOpen===s.i){
-    lockedRoute.subs.filter(n=>!onRoute.has(n)).forEach(n=>{
-      const c=candidateStop(n); if(!c) return;
-      const early=c.open>0 && decToMin(c.open)>s.leave-s.len;
-      const b=document.createElement('button');
-      b.className='btn ghost swapopt'; b.disabled=early;
-      b.textContent=early?`${n} (opens ${hm(decToMin(c.open))})`:n;
-      b.onclick=()=>swapStop(s.i,n);
-      wrap.appendChild(b);
-    });
-  }
-  return wrap;
-}
-function renderNight(){
-  const {slots}=computeSlots();
-  const el=document.getElementById('ticks');
-  const ck=document.getElementById('clock');
-  if(!slots.length){ el.innerHTML='<p class="note">Build a route first.</p>'; return; }
-
-  const now=new Date(); const nowM=now.getHours()*60+now.getMinutes();
-  let current=slots.findIndex(s=>nowM>=s.leave-s.len && nowM<s.leave);
-  const doneCount=slots.filter(s=>ticks[s.name]).length;
-  const should=slots.filter(s=>nowM>=s.leave).length;
-  const drift=doneCount-should;
-  ck.className='clock'+(drift>0?' ahead':drift<0?' behind':'');
-  ck.innerHTML=`<div class="big">${doneCount} / ${slots.length}</div>`+
-    `<div class="st">${current>=0?'Slot '+(current+1)+' — '+slots[current].name+' until '+hm(slots[current].leave)
-      : nowM<slots[0].leave-slots[0].len ? 'Starts '+hm(slots[0].leave-slots[0].len) : 'Route finished'}`+
-    (drift!==0?` · ${Math.abs(drift)} ${drift>0?'ahead':'behind'}`:'')+`</div>`;
-
-  el.innerHTML='';
-  slots.forEach((s,i)=>{
-    const b=document.createElement('button');
-    b.className='tick'+(ticks[s.name]?' done':'')+(i===current?' now':'');
-    b.innerHTML=`<span class="box">${ticks[s.name]?'✓':''}</span>`+
-      `<span><span class="pubname">${s.name}</span><span class="sub">`+
-      `${hm(s.leave-s.len)}–${hm(s.leave)} · ${s.inPub} min inside${isFoodStop(s)?' · food stop':''}${s.swappedFrom?' · sub for '+s.swappedFrom:''}</span></span>`;
-    b.onclick=()=>{ ticks[s.name]=!ticks[s.name]; LS.set('ticks',ticks); renderNight(); };
-    el.appendChild(b);
-    if(lockedRoute && !ticks[s.name] && route.length===lockedRoute.stops.length) el.appendChild(swapControls(s));
-  });
-  if(lockedRoute && lockedRoute.after){
-    const a=lockedRoute.after, n=document.createElement('p');
-    n.className='note'; n.style.marginTop='12px';
-    n.textContent=`After party: ${a.name}, ${a.where}. Open until ${a.until}.`;
-    el.appendChild(n);
-  }
-  if(lockedRoute && slots.some(s=>s.swappedFrom)){
-    const u=document.createElement('button');
-    u.className='btn'; u.textContent='Copy update for the group';
-    u.style.marginTop='12px';
-    u.onclick=async()=>{
-      try{ await navigator.clipboard.writeText(groupUpdate()); u.textContent='Copied'; }
-      catch(e){ window.prompt('Copy this:',groupUpdate()); }
-    };
-    el.appendChild(u);
-  }
-}
-document.getElementById('resetTicks').onclick=()=>{ if(confirm('Untick every pub?')){ ticks={}; LS.set('ticks',ticks); renderNight(); } };
-setInterval(()=>{ if(document.getElementById('p-night').classList.contains('on')) renderNight(); }, 30000);
-
-/* ============================ tabs ============================ */
-function tab(name){
-  ['archive','plan','night'].forEach(n=>{
-    document.getElementById('p-'+n).classList.toggle('on', n===name);
-    document.getElementById('t-'+n).setAttribute('aria-current', String(n===name));
-  });
-  archiveLayer.remove(); routeLayer.remove();
-  if(name==='archive'){ archiveLayer.addTo(map); note.style.display=''; }
-  else { routeLayer.addTo(map); note.style.display='none'; }
-  if(name==='plan') render();
-  if(name==='night') renderNight();
-  setTimeout(()=>map.invalidateSize(),60);
-}
-document.getElementById('t-archive').onclick=()=>tab('archive');
-document.getElementById('t-plan').onclick   =()=>tab('plan');
-document.getElementById('t-night').onclick  =()=>tab('night');
-
-/* ============================ archive editor ============================ */
-const editSel=document.getElementById('editYear'), editorEl=document.getElementById('editor');
-
-function fillYearSelect(){
-  const cur=editSel.value;
-  editSel.innerHTML='<option value="">Choose a year…</option>'+
-    years().map(y=>`<option value="${y.year}">${y.year} — ${y.district}</option>`).join('');
-  editSel.value=cur;
-}
-function yearData(yr){
-  const y=years().find(y=>y.year===+yr);
-  return y ? JSON.parse(JSON.stringify(y)) : null;
-}
-function saveYear(y){
-  edits[y.year]={district:y.district, pubs:y.pubs};
-  LS.set('edits',edits);
-  shown.add(y.year);
-  drawArchive(); buildLedger(); fillYearSelect(); drawEditor(); drawPicker();
-}
-function drawEditor(){
-  const yr=editSel.value;
-  if(!yr){ editorEl.innerHTML=''; return; }
-  const y=yearData(yr); if(!y){ editorEl.innerHTML=''; return; }
-  let h=`<div class="field"><label for="edDist">District</label>
-    <input type="text" id="edDist" value="${y.district.replace(/"/g,'&quot;')}"></div>
-    <table><tbody>`;
-  y.pubs.forEach((p,i)=>{
-    const unv=!p[3] && !moved[key(y.year,p[0])];
-    h+=`<tr><td class="t">${i+1}</td>
-      <td><input type="text" data-ed="${i}" value="${p[0].replace(/"/g,'&quot;')}" style="width:100%">
-      ${unv?'<span class="warn">location unconfirmed</span>':''}</td>
-      <td style="width:64px;white-space:nowrap">
-        <button class="x" data-up="${i}" ${i===0?'disabled':''} title="Move up">↑</button>
-        <button class="x" data-dn="${i}" ${i===y.pubs.length-1?'disabled':''} title="Move down">↓</button>
-        <button class="x" data-rm="${i}" title="Remove">✕</button>
-      </td></tr>`;
-  });
-  h+=`</tbody></table>
-    <div class="ledger-actions">
-      <button class="mini" id="edAdd">Add a pub</button>
-      <button class="mini" id="edDel" style="color:var(--oxblood)">Delete this year</button>
-    </div>
-    <p class="note" style="margin-top:8px">${y.pubs.length} pubs. New pubs land in the middle of the map — drag the amber pin to place them.</p>`;
-  editorEl.innerHTML=h;
-
-  document.getElementById('edDist').onchange=e=>{ y.district=e.target.value; saveYear(y); };
-  editorEl.querySelectorAll('[data-ed]').forEach(inp=>inp.onchange=()=>{
-    y.pubs[+inp.dataset.ed][0]=inp.value; saveYear(y);
-  });
-  editorEl.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.up; [y.pubs[i-1],y.pubs[i]]=[y.pubs[i],y.pubs[i-1]]; saveYear(y);
-  });
-  editorEl.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.dn; [y.pubs[i+1],y.pubs[i]]=[y.pubs[i],y.pubs[i+1]]; saveYear(y);
-  });
-  editorEl.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.rm;
-    if(confirm(`Remove ${y.pubs[i][0]} from ${y.year}?`)){ y.pubs.splice(i,1); saveYear(y); }
-  });
-  document.getElementById('edAdd').onclick=()=>{
-    const n=prompt('Pub name'); if(!n) return;
-    const c=CANDIDATES.find(c=>norm(c[0])===norm(n));
-    y.pubs.push(c ? [c[0],c[1],c[2],true] : [n, 53.3470, -6.2590, false]);
-    saveYear(y);
-    if(!c) alert('Added. It will show as an amber pin near the centre — drag it into place.');
-  };
-  document.getElementById('edDel').onclick=()=>{
-    if(confirm(`Delete the whole ${y.year} crawl from your copy?`)){
-      edits[y.year]=null; LS.set('edits',edits); shown.delete(y.year);
-      editSel.value=''; drawArchive(); buildLedger(); fillYearSelect(); drawEditor();
-    }
-  };
-}
-editSel.onchange=drawEditor;
-document.getElementById('newYear').onclick=()=>{
-  const yr=prompt('Which year?', String(new Date().getFullYear()));
-  if(!yr||isNaN(+yr)) return;
-  if(years().some(y=>y.year===+yr)){ alert(yr+' already exists. Pick it from the dropdown to edit it.'); return; }
-  const d=prompt('District, e.g. "Ballybough"','')||'Untitled';
-  const y={year:+yr, district:d, pubs:[]};
-  // Seed from the planner if there's a route sitting there.
-  if(route.length && confirm(`Start from the ${route.length}-stop route in the planner?`))
-    y.pubs = route.map(r=>[r.name, r.lat, r.lng, !r.custom]);
-  saveYear(y); editSel.value=String(yr); drawEditor();
-};
-document.getElementById('resetEdits').onclick=()=>{
-  if(confirm('Throw away every change you have made and go back to the shipped list?')){
-    edits={}; LS.set('edits',edits); editSel.value='';
-    drawArchive(); buildLedger(); fillYearSelect(); drawEditor(); drawPicker();
-  }
-};
-
-/* ============================ folds ============================ */
-/* Collapsing a section frees vertical space for the map on phones,
-   so re-measure Leaflet after each toggle. State sticks per device. */
-document.querySelectorAll('details.fold').forEach(d=>{
-  const saved = LS.get('fold:'+d.id, null);
-  if(saved !== null) d.open = saved;
-  d.addEventListener('toggle', ()=>{
-    LS.set('fold:'+d.id, d.open);
-    setTimeout(()=>map.invalidateSize(), 60);
-  });
 });
+async function sendCheckin(job){
+  const path = '2026/' + uuid() + '.jpg';
+  await upload(path, job.blob);
+  return rpc('check_in', {p_email: email, p_slot: job.slot, p_photo: path, p_lat: job.lat, p_lng: job.lng, p_acc: job.acc});
+}
 
-/* ============================ boot ============================ */
-document.getElementById('startT').value=startT;
-document.getElementById('closeT').value=closeT;
-// Each device picks up the locked route once. Swaps made after that are kept.
-if(lockedRoute && !unlocked && !LS.get('lock:'+lockedRoute.id,false)) loadSaved(lockedRoute);
-if(lockedRoute) LS.set('lock:'+lockedRoute.id,true);
-applyLock();
-drawArchive(); buildLedger(); drawPicker(); fillYearSelect(); drawSaved();
+/* offline queue (IndexedDB holds the photo until there's signal) */
+function idb(){ return new Promise((res, rej) => { const r = indexedDB.open('12pubs', 1); r.onupgradeneeded = () => r.result.createObjectStore('queue', {keyPath: 'slot'}); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+async function queuePut(job){ try{ const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('queue', 'readwrite'); t.objectStore('queue').put(job); t.oncomplete = res; t.onerror = () => rej(t.error); }); }catch(e){} }
+async function queueAll(){ try{ const db = await idb(); return await new Promise((res, rej) => { const r = db.transaction('queue').objectStore('queue').getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }catch(e){ return []; } }
+async function queueDel(slot){ try{ const db = await idb(); await new Promise(res => { const t = db.transaction('queue', 'readwrite'); t.objectStore('queue').delete(slot); t.oncomplete = res; }); }catch(e){} }
+let flushing = false;
+async function flushQueue(){
+  if(flushing || !email) return; flushing = true;
+  try{
+    const jobs = await queueAll();
+    jobs.forEach(j => { pending[j.slot] = true; });
+    for(const j of jobs){
+      try{ await sendCheckin(j); await queueDel(j.slot); delete pending[j.slot]; toast('Sent your saved check-in. 🍺'); }
+      catch(e){ if(e.server){ await queueDel(j.slot); delete pending[j.slot]; } break; }
+    }
+    if(jobs.length){ S = await rpc('crawl_state', {p_email: email}).catch(() => S); store.set('state', S); render(); }
+  }finally{ flushing = false; }
+}
+window.addEventListener('online', () => { flushQueue(); refresh(); });
+
+/* ---------------- events ---------------- */
+function go(t){
+  tab = t;
+  document.querySelectorAll('.view').forEach(v => { v.hidden = v.dataset.view !== t; });
+  window.scrollTo(0, 0);
+  render();
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.tab)));
+$('ring').addEventListener('click', () => go('board'));
+document.addEventListener('click', async e => {
+  const c = e.target.closest('[data-checkin]'); if(c){ openSheet(+c.dataset.checkin); return; }
+  const st = e.target.closest('[data-story]'); if(st){ const n = +st.dataset.story; openStory.has(n) ? openStory.delete(n) : openStory.add(n); renderRoute(); return; }
+  const u = e.target.closest('[data-undo]'); if(u){ try{ await rpc('undo_check_in', {p_email: email, p_slot: +u.dataset.undo}); toast('Check-in removed.'); refresh(); }catch(err){ toast('Couldn\'t undo. Try again with signal.'); } }
+});
+setInterval(() => { if(email && document.visibilityState === 'visible' && navigator.onLine) refresh(); else if(S) renderTop(); }, 20000);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && email) refresh(); });
+
+/* ---------------- boot ---------------- */
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if(email && S){ showApp(); refresh(); }
+else if(email){ refresh(true).then(() => S ? showApp() : showGate()); }
+else showGate();

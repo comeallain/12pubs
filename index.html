@@ -1,120 +1,102 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IE">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>12Pubs</title>
-<meta name="theme-color" content="#13251E">
+<title>12 Pubs Of Winter</title>
+<meta name="description" content="12 Pubs Of Winter. Guests only.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B1712">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="12Pubs">
-<meta name="description" content="Archive and route planner for the annual Dublin pub crawl.">
+<meta name="apple-mobile-web-app-title" content="12 Pubs">
+<meta property="og:title" content="12 Pubs Of Winter">
+<meta property="og:description" content="Guests only. Bring your email.">
+<meta property="og:image" content="https://comeallain.github.io/12pubs/icon-512.png">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=10">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=20">
 </head>
 <body>
 
-<header>
-  <h1>12Pubs <span>— Dublin</span></h1>
-  <nav>
-    <button id="t-archive" aria-current="true">Archive</button>
-    <button id="t-plan">Plan a route</button>
-    <button id="t-night">On the night</button>
+<!-- GATE -->
+<section id="gate" class="gate" hidden>
+  <div class="gate-art" id="gateArt" aria-hidden="true"></div>
+  <div class="gate-body">
+    <p class="eyebrow" id="gateDate">Wednesday 2 December</p>
+    <h1 class="gate-title">12 Pubs<br><em>Of Winter</em></h1>
+    <p class="gate-count" id="gateCount"></p>
+    <form id="gateForm" class="gate-form" novalidate>
+      <label for="gName">Your name</label>
+      <input id="gName" name="name" autocomplete="given-name" placeholder="What the lads call you" maxlength="40">
+      <label for="gEmail">Email</label>
+      <input id="gEmail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="The one Kevin has" required>
+      <button class="btn primary big" id="gateBtn" type="submit">Get in</button>
+      <p class="gate-msg" id="gateMsg" role="alert"></p>
+    </form>
+    <p class="fine">Guests only. Your email is checked against the list and used for nothing else.</p>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app" class="app" hidden>
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <p class="eyebrow" id="topDate"></p>
+        <h1 class="top-title">12 Pubs <em>Of Winter</em></h1>
+      </div>
+      <button class="ring" id="ring" type="button" aria-label="Your progress"></button>
+    </div>
+    <p class="top-status" id="topStatus"></p>
+  </header>
+
+  <main id="views">
+    <section class="view" id="v-route" data-view="route"></section>
+    <section class="view" id="v-board" data-view="board" hidden></section>
+    <section class="view" id="v-map" data-view="map" hidden><div id="map"></div><button class="fab" id="locate" type="button">Where am I?</button></section>
+    <section class="view" id="v-admin" data-view="admin" hidden></section>
+    <section class="view" id="v-me" data-view="me" hidden></section>
+  </main>
+
+  <nav class="tabs" aria-label="Sections">
+    <button type="button" data-tab="route" aria-current="page"><span class="ti">🍺</span>Route</button>
+    <button type="button" data-tab="board"><span class="ti">🏆</span>Board</button>
+    <button type="button" data-tab="map"><span class="ti">🗺️</span>Map</button>
+    <button type="button" data-tab="me"><span class="ti">🪓</span>You</button>
+    <button type="button" data-tab="admin" id="adminTab" hidden><span class="ti">🔑</span>Admin</button>
   </nav>
-  <div class="tally" id="tally"></div>
-</header>
+</div>
 
-<main>
-  <div id="map"></div>
-  <aside>
+<!-- CHECK-IN SHEET -->
+<div class="sheet-wrap" id="sheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="grab"></div>
+    <p class="eyebrow" id="sheetSlot"></p>
+    <h2 id="sheetTitle"></h2>
+    <label class="photo-pick" id="photoPick">
+      <input type="file" id="photo" accept="image/*" capture="environment">
+      <img id="photoPrev" alt="" hidden>
+      <span id="photoHint">📸 Take a photo of the pint, the pub or the state of the lads</span>
+    </label>
+    <p class="loc" id="loc">Checking where you are…</p>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="sheetCancel" type="button">Cancel</button>
+      <button class="btn primary" id="sheetGo" type="button" disabled>Check in</button>
+    </div>
+    <p class="fine" id="sheetMsg" role="status"></p>
+  </div>
+</div>
 
-    <!-- ARCHIVE -->
-    <section class="pane on" id="p-archive">
-      <details class="fold" id="d-years" open>
-        <summary><h2>Thirteen crawls</h2><span class="foldnote" id="yearsNote"></span></summary>
-        <p class="note">Every pub drunk since 2011. Tap a year to show or hide it. Amber pins are my best guess — drag one to the right spot and it stays put.</p>
-        <div class="ledger" id="ledger"></div>
-        <div class="ledger-actions">
-          <button class="mini" id="allOn">Show all</button>
-          <button class="mini" id="allOff">Hide all</button>
-          <button class="mini" id="amberOnly">Amber only</button>
-        </div>
-      </details>
-
-      <details class="fold" id="d-edit" open>
-        <summary><h2>Edit a crawl</h2></summary>
-        <p class="note">Fix a name, change the order, or record a new year. Your changes are saved on this device; the shipped list underneath is never overwritten.</p>
-        <div class="field">
-          <select id="editYear"><option value="">Choose a year…</option></select>
-        </div>
-        <div id="editor"></div>
-        <div class="ledger-actions">
-          <button class="btn ghost" id="newYear">Record a new year</button>
-          <button class="mini" id="resetEdits">Undo all my edits</button>
-        </div>
-      </details>
-    </section>
-
-    <!-- PLANNER -->
-    <section class="pane" id="p-plan">
-      <h2>Plan a route</h2>
-      <p class="note">Twelve stops. Six slots of thirty minutes, then six of forty-five, with the walk taken out of each slot. Add pubs in walking order.</p>
-
-      <div class="field" id="savedRoutes"></div>
-
-      <div class="row">
-        <div class="field"><label for="startT">Start</label><input type="time" id="startT" value="15:30"></div>
-        <div class="field"><label for="closeT">Last orders</label><input type="time" id="closeT" value="23:30"></div>
-      </div>
-      <div class="row">
-        <div class="field"><label for="side">Side</label>
-          <select id="side"><option value="">Both sides</option><option value="N">Northside</option><option value="S">Southside</option></select>
-        </div>
-        <div class="field"><label for="pace">Walking pace</label>
-          <select id="pace">
-            <option value="4.5">A group, sober-ish — 4.5 km/h</option>
-            <option value="5.2">On your own, moving — 5.2 km/h</option>
-            <option value="3.8">Eight pints in — 3.8 km/h</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="field addpub">
-        <label for="q">Add a pub</label>
-        <input type="text" id="q" placeholder="Type a name, or click the map to drop a stop">
-        <div class="picker" id="picker"></div>
-      </div>
-
-      <div id="slots"></div>
-      <div id="verdict"></div>
-      <div class="ledger-actions">
-        <button class="btn ghost" id="clearRoute">Clear route</button>
-        <button class="btn" id="toNight">Use tonight</button>
-      </div>
-    </section>
-
-    <!-- NIGHT -->
-    <section class="pane" id="p-night">
-      <h2>On the night</h2>
-      <div class="clock" id="clock"><div class="big">—</div><div class="st">No route loaded</div></div>
-      <div id="ticks"></div>
-      <div class="ledger-actions">
-        <button class="mini" id="resetTicks">Reset all ticks</button>
-      </div>
-    </section>
-
-  </aside>
-</main>
+<div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="data.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>
