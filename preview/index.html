@@ -20,13 +20,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=32">
+<link rel="stylesheet" href="app.css?v=33">
 </head>
 <body>
 
 <!-- SIGN-IN -->
 <section id="gate" class="gate" hidden>
-  <div class="fascia"><span class="screw"></span><h1>12 Pubs<br>of Winter</h1><span class="screw"></span></div>
+  <div class="fascia"><span class="screw"></span><h1>12 Pubs<br>Of Winter<sup>*</sup></h1><span class="screw"></span></div>
+  <p class="footnote">*we don't want to offend anyone, you bunch of cunts</p>
   <p class="gate-when" id="gateWhen">Wednesday 2 December, 15:30</p>
   <div class="wall gate-wall" id="gateDoors" aria-hidden="true"></div>
   <p class="gate-count" id="gateCount"></p>
@@ -44,7 +45,8 @@
 <!-- APP -->
 <div id="app" class="app" hidden>
   <header class="top">
-    <div class="fascia small"><span class="screw"></span><h1>12 Pubs of Winter</h1><span class="screw"></span></div>
+    <div class="fascia small"><span class="screw"></span><h1>12 Pubs Of Winter<sup>*</sup></h1><span class="screw"></span></div>
+    <p class="footnote">*we don't want to offend anyone, you bunch of cunts</p>
     <div class="top-row">
       <p class="top-status" id="topStatus"></p>
       <button class="ring" id="ring" type="button" aria-label="Doors open"></button>
@@ -104,36 +106,6 @@
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<div id="pvGate" style="position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:#14213D;color:#F2EDE3;font:16px/1.5 'Atkinson Hyperlegible',system-ui,sans-serif">
-  <form id="pvForm" style="width:100%;max-width:360px;display:grid;gap:10px">
-    <h1 style="margin:0;font:28px/1.1 'Alfa Slab One',Georgia,serif;color:#F3D27C">12 Pubs preview</h1>
-    <p style="margin:0;color:#AEB8CB">A test copy with made-up lads and a time machine. Nothing here touches the real guest list.</p>
-    <label for="pvCode" style="font-weight:700">Preview code</label>
-    <input id="pvCode" autocomplete="off" autocapitalize="off" style="min-height:52px;padding:10px 12px;border-radius:10px;border:2px solid rgba(201,195,182,.3);background:#1B2B4D;color:inherit;font:inherit">
-    <button type="submit" style="min-height:52px;border-radius:10px;border:0;background:#E0B54A;color:#22190A;font:700 17px/1 inherit;cursor:pointer">Open the preview</button>
-    <p id="pvErr" role="alert" style="margin:0;min-height:1.5em;color:#EE7666;font-weight:700"></p>
-  </form>
-</div>
-<script>
-(function(){
-  var SB='https://afijpjkgkknhsmtriqzq.supabase.co', KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmaWpwamtna2tuaHNtdHJpcXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyMDMyMDYsImV4cCI6MjExMDc3OTIwNn0.uWTbmFrr2A8TtvfgxKCp0H2ssHXHttnpirDv_iia2oY';
-  function load(src){ return new Promise(function(res,rej){ var s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.body.appendChild(s); }); }
-  async function go(code){
-    var r = await fetch(SB+'/rest/v1/rpc/preview_data',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_code:code})});
-    var d = await r.json();
-    if(!r.ok || !d || d.error) throw new Error('bad');
-    window.PREVIEW_DATA = d;
-    try{ sessionStorage.setItem('pv:code', code); }catch(e){}
-    document.getElementById('pvGate').remove();
-    await load('preview.js?v=32'); await load('app.js?v=32');
-  }
-  var saved=null; try{ saved=sessionStorage.getItem('pv:code'); }catch(e){}
-  if(saved) go(saved).catch(function(){});
-  document.getElementById('pvForm').addEventListener('submit', function(e){
-    e.preventDefault(); document.getElementById('pvErr').textContent='';
-    go(document.getElementById('pvCode').value.trim()).catch(function(){ document.getElementById('pvErr').textContent='That code didn\'t work. Check it with Kevin.'; });
-  });
-})();
-</script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

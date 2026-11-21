@@ -21,13 +21,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=32">
+<link rel="stylesheet" href="app.css?v=33">
 </head>
 <body>
 
 <!-- SIGN-IN -->
 <section id="gate" class="gate" hidden>
-  <div class="fascia"><span class="screw"></span><h1>12 Pubs<br>of Winter</h1><span class="screw"></span></div>
+  <div class="fascia"><span class="screw"></span><h1>12 Pubs<br>Of Winter<sup>*</sup></h1><span class="screw"></span></div>
+  <p class="footnote">*we don't want to offend anyone, you bunch of cunts</p>
   <p class="gate-when" id="gateWhen">Wednesday 2 December, 15:30</p>
   <div class="wall gate-wall" id="gateDoors" aria-hidden="true"></div>
   <p class="gate-count" id="gateCount"></p>
@@ -45,7 +46,8 @@
 <!-- APP -->
 <div id="app" class="app" hidden>
   <header class="top">
-    <div class="fascia small"><span class="screw"></span><h1>12 Pubs of Winter</h1><span class="screw"></span></div>
+    <div class="fascia small"><span class="screw"></span><h1>12 Pubs Of Winter<sup>*</sup></h1><span class="screw"></span></div>
+    <p class="footnote">*we don't want to offend anyone, you bunch of cunts</p>
     <div class="top-row">
       <p class="top-status" id="topStatus"></p>
       <button class="ring" id="ring" type="button" aria-label="Doors open"></button>
@@ -105,6 +107,6 @@
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>
