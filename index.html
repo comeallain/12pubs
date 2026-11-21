@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>12 Pubs Of Winter</title>
-<meta name="description" content="12 Pubs Of Winter. Wednesday 2 December.">
+<meta name="description" content="12 Pubs Of Winter. One pub a day until Wednesday 2 December.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0B1712">
+<meta name="theme-color" content="#14213D">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="12 Pubs">
 <meta property="og:title" content="12 Pubs Of Winter">
-<meta property="og:description" content="Wednesday 2 December, 15:30. The route drops on the day.">
+<meta property="og:description" content="A new door opens every day at noon. Wednesday 2 December, 15:30.">
 <meta property="og:image" content="https://12pubs.eu/icon-512.png">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -20,65 +20,66 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=21">
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=32">
 </head>
 <body>
 
-<!-- GATE -->
+<!-- SIGN-IN -->
 <section id="gate" class="gate" hidden>
-  <div class="gate-art" id="gateArt" aria-hidden="true"></div>
-  <div class="gate-body">
-    <p class="eyebrow" id="gateDate">Wednesday 2 December</p>
-    <h1 class="gate-title">12 Pubs<br><em>Of Winter</em></h1>
-    <p class="gate-count" id="gateCount"></p>
-    <form id="gateForm" class="gate-form" novalidate>
-      <label for="gName">Your name</label>
-      <input id="gName" name="name" autocomplete="given-name" placeholder="What the lads call you" maxlength="40">
-      <label for="gEmail">Email</label>
-      <input id="gEmail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
-      <button class="btn primary big" id="gateBtn" type="submit">Get in</button>
-      <p class="gate-msg" id="gateMsg" role="alert"></p>
-    </form>
-    <p class="fine">Your email keeps your check-ins yours. It isn't shared or used for anything else.</p>
-  </div>
+  <div class="fascia"><span class="screw"></span><h1>12 Pubs<br>of Winter</h1><span class="screw"></span></div>
+  <p class="gate-when" id="gateWhen">Wednesday 2 December, 15:30</p>
+  <div class="wall gate-wall" id="gateDoors" aria-hidden="true"></div>
+  <p class="gate-count" id="gateCount"></p>
+  <form id="gateForm" class="gate-form" novalidate>
+    <label for="gName">Your name</label>
+    <input id="gName" name="name" autocomplete="given-name" placeholder="What the lads call you" maxlength="40">
+    <label for="gEmail">Email</label>
+    <input id="gEmail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
+    <button class="btn brass big" id="gateBtn" type="submit">Let me in</button>
+    <p class="gate-msg" id="gateMsg" role="alert"></p>
+  </form>
+  <p class="fine">Your email keeps your check-ins yours. Nobody else sees it.</p>
 </section>
 
 <!-- APP -->
 <div id="app" class="app" hidden>
   <header class="top">
+    <div class="fascia small"><span class="screw"></span><h1>12 Pubs of Winter</h1><span class="screw"></span></div>
     <div class="top-row">
-      <div>
-        <p class="eyebrow" id="topDate"></p>
-        <h1 class="top-title">12 Pubs <em>Of Winter</em></h1>
-      </div>
-      <button class="ring" id="ring" type="button" aria-label="Your progress"></button>
+      <p class="top-status" id="topStatus"></p>
+      <button class="ring" id="ring" type="button" aria-label="Doors open"></button>
     </div>
-    <p class="top-status" id="topStatus"></p>
   </header>
 
   <main id="views">
-    <section class="view" id="v-route" data-view="route"></section>
-    <section class="view" id="v-board" data-view="board" hidden></section>
-    <section class="view" id="v-map" data-view="map" hidden><div class="empty map-lock" id="mapLock" hidden>🗺️ The map appears on the day, along with the route.</div><div id="map"></div><button class="fab" id="locate" type="button">Where am I?</button></section>
+    <section class="view" id="v-doors" data-view="doors"></section>
+    <section class="view" id="v-map" data-view="map" hidden><p class="map-note" id="mapNote"></p><div id="map"></div><button class="fab" id="locate" type="button">Where am I?</button></section>
     <section class="view" id="v-admin" data-view="admin" hidden></section>
     <section class="view" id="v-me" data-view="me" hidden></section>
   </main>
 
   <nav class="tabs" aria-label="Sections">
-    <button type="button" data-tab="route" aria-current="page"><span class="ti">🍺</span>Route</button>
-    <button type="button" data-tab="board"><span class="ti">🏆</span>Board</button>
+    <button type="button" data-tab="doors" aria-current="page"><span class="ti">🚪</span><span id="doorsLabel">Doors</span></button>
     <button type="button" data-tab="map"><span class="ti">🗺️</span>Map</button>
     <button type="button" data-tab="me"><span class="ti">🪓</span>You</button>
     <button type="button" data-tab="admin" id="adminTab" hidden><span class="ti">🔑</span>Admin</button>
   </nav>
 </div>
 
+<!-- PUB SHEET -->
+<div class="sheet-wrap" id="pubSheet" hidden>
+  <div class="sheet pub-sheet" role="dialog" aria-modal="true" aria-labelledby="psName">
+    <button class="x" id="psClose" type="button" aria-label="Close">✕</button>
+    <div id="psBody"></div>
+  </div>
+</div>
+
 <!-- CHECK-IN SHEET -->
 <div class="sheet-wrap" id="sheet" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
     <div class="grab"></div>
-    <p class="eyebrow" id="sheetSlot"></p>
+    <p class="kicker" id="sheetSlot"></p>
     <h2 id="sheetTitle"></h2>
     <label class="photo-pick" id="photoPick">
       <input type="file" id="photo" accept="image/*" capture="environment">
@@ -88,15 +89,22 @@
     <p class="loc" id="loc">Checking where you are…</p>
     <div class="sheet-actions">
       <button class="btn ghost" id="sheetCancel" type="button">Cancel</button>
-      <button class="btn primary" id="sheetGo" type="button" disabled>Check in</button>
+      <button class="btn brass" id="sheetGo" type="button" disabled>Check in</button>
     </div>
     <p class="fine" id="sheetMsg" role="status"></p>
   </div>
 </div>
 
+<!-- STREET VIEW, FULL SCREEN -->
+<div class="viewer" id="svView" role="dialog" aria-modal="true" aria-labelledby="svName" hidden>
+  <div class="viewer-bar"><b id="svName"></b><button class="btn brass small" id="svDone" type="button">Done</button></div>
+  <iframe id="svFrame" title="Street view" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <p class="viewer-hint">Drag to look around. Tap Done to go back.</p>
+</div>
+
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=21"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>

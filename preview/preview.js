@@ -148,7 +148,7 @@
     ['Wed 2 Dec, 23:50 (Whelan\'s)', new Date(2026, 11, 2, 23, 50)]
   ];
   const css = document.createElement('style');
-  css.textContent = `.pv{position:sticky;top:0;z-index:90;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 12px;background:#FFD98A;color:#22190A;font:14px/1.3 "Atkinson Hyperlegible",system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+  css.textContent = `.pv{position:sticky;top:0;z-index:25;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 12px;background:#FFD98A;color:#22190A;font:14px/1.3 "Atkinson Hyperlegible",system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.4)}
   .pv b{font-weight:700}.pv select,.pv button{font:inherit;font-weight:700;color:#22190A;background:#fff8e2;border:2px solid #8F6F22;border-radius:8px;padding:5px 8px;min-height:36px}
   .pv .clock{flex:1 1 100%;font-size:12.5px;opacity:.85}.top{top:var(--pvh,0px)!important}`;
   document.head.appendChild(css);

@@ -1,9 +1,10 @@
-/* 12 Pubs Of Winter. Everything private lives in the database and is only
-   handed to emails on the guest list. This file holds no route data. */
+/* 12 Pubs Of Winter. The route lives in the database and comes out one door a day.
+   This file holds no pub data. */
 'use strict';
 const SB = 'https://afijpjkgkknhsmtriqzq.supabase.co';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmaWpwamtna2tuaHNtdHJpcXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyMDMyMDYsImV4cCI6MjExMDc3OTIwNn0.uWTbmFrr2A8TtvfgxKCp0H2ssHXHttnpirDv_iia2oY';
-const SITE = location.origin + location.pathname.replace(/index\.html$/, '');
+const SITE = location.origin + location.pathname.replace(/[^/]*$/, '');
+const PREVIEW = window.PREVIEW || null;   // the private preview swaps in a fake database and a time machine
 
 /* ---------------- small helpers ---------------- */
 const $ = id => document.getElementById(id);
@@ -13,12 +14,16 @@ const store = {
   set(k, v){ try{ localStorage.setItem('12p:'+k, JSON.stringify(v)); }catch(e){} },
   del(k){ try{ localStorage.removeItem('12p:'+k); }catch(e){} }
 };
+const now = () => PREVIEW ? PREVIEW.now() : Date.now();
 const pad = n => String(n).padStart(2, '0');
 const hm = m => pad(Math.floor(m / 60) % 24) + ':' + pad(Math.round(m % 60));
 const toMin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
-const closeMin = t => { const m = toMin(t); return m < 6 * 60 ? m + 24 * 60 : m; };
-const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
-const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const dayKey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const todayKey = () => dayKey(new Date(now()));
+const nowMin = () => { const d = new Date(now()); return d.getHours() * 60 + d.getMinutes(); };
+const atMs = iso => new Date(iso).getTime();            // ISO without a zone = Dublin local time
+const shortDay = iso => new Date(iso).toLocaleDateString('en-IE', {weekday: 'short', day: 'numeric'});
+const longDay = iso => new Date(iso).toLocaleDateString('en-IE', {weekday: 'long', day: 'numeric', month: 'long'});
 function km(a, b){
   const r = Math.PI / 180, x = Math.sin((b.lat - a.lat) * r / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin((b.lng - a.lng) * r / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.sqrt(x));
@@ -26,17 +31,13 @@ function km(a, b){
 const walkMins = (a, b) => Math.max(1, Math.round(km(a, b) * 1.2 / 4.5 * 60));
 const mapsLink = p => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ', ' + p.area + ', Dublin') + (p.maps_id ? '&query_place_id=' + p.maps_id : '');
 const dirLink = p => 'https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=' + encodeURIComponent(p.name + ', ' + p.area + ', Dublin') + (p.maps_id ? '&destination_place_id=' + p.maps_id : '');
-/* Card picture: a free-licensed photo with its credit where one exists, otherwise the illustration. */
-function art(p, id){
-  if(!p.photo_url) return shopfront(p, id);
-  return shopfront(p, id) + `<img src="${esc(p.photo_url)}" alt="${esc(p.name)}" loading="lazy" onerror="if(this.nextElementSibling)this.nextElementSibling.remove();this.remove()">` +
-    `<a class="credit" href="${esc(p.photo_page || p.photo_url)}" target="_blank" rel="noopener">${esc(p.photo_credit || 'Photo credit')}</a>`;
-}
-const isPractice = () => !!pin && S && (S.preview || dayInfo().days > 0);
-const photoUrl = path => SB + '/storage/v1/object/public/checkins/' + path;
+const svSrc = p => p.sv ? `https://www.google.com/maps/embed?pb=!4v1!6m8!1m7!1s${encodeURIComponent(p.sv.pano)}!2m2!1d${p.sv.lat}!2d${p.sv.lng}!3f${p.sv.h}!4f${p.sv.p || 0}!5f0.8` : null;
+const photoUrl = path => /^(https?:|blob:|data:)/.test(path) ? path : SB + '/storage/v1/object/public/checkins/' + path;
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 3200); }
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 
 async function rpc(name, args){
+  if(PREVIEW) return PREVIEW.rpc(name, args || {});
   const r = await fetch(SB + '/rest/v1/rpc/' + name, {
     method: 'POST',
     headers: {'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json'},
@@ -47,6 +48,7 @@ async function rpc(name, args){
   return body;
 }
 async function upload(path, blob){
+  if(PREVIEW) return PREVIEW.upload(path, blob);
   const r = await fetch(SB + '/storage/v1/object/checkins/' + path, {
     method: 'POST',
     headers: {'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'image/jpeg', 'x-upsert': 'false', 'cache-control': '31536000'},
@@ -56,65 +58,48 @@ async function upload(path, blob){
 }
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
 
-/* ---------------- shopfront illustrations ---------------- */
+/* ---------------- the doors ---------------- */
+// Twelve Dublin door colours. A door keeps its colour whatever pub ends up behind it.
+const DOOR = ['#B3262E', '#1F5B3A', '#1D4E89', '#E0A526', '#5E2B4F', '#1E6E6A', '#C4571B', '#2B2B30', '#3E7CB1', '#6B1F25', '#5E6B2E', '#7E5A8C'];
+const doorColour = slot => DOOR[(slot - 1) % 12];
 function shade(hex, amt){
   const n = parseInt(hex.slice(1), 16);
   const f = v => Math.max(0, Math.min(255, Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt)));
   return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(f).map(v => v.toString(16).padStart(2, '0')).join('');
 }
-function hash(s){ let h = 0; for(const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
-function shopfront(p, id){
-  const paint = p.paint || '#1F4D3A', dark = shade(paint, -.45), light = shade(paint, .12), h = hash(p.name);
-  const name = (p.name || '').toUpperCase();
-  const fs = Math.min(30, 300 / (0.62 * Math.max(name.length, 6)));
-  const doorX = h % 3 === 0 ? 300 : 182, door2 = doorX === 182;
-  const winA = door2 ? [52, 168] : [52, 236], winB = door2 ? [232, 348] : [244, 288];
-  const panes = 2 + (h % 2);
-  const g = 'g' + id;
-  const win = ([x1, x2]) => {
-    let bars = ''; for(let i = 1; i < panes; i++){ const x = x1 + (x2 - x1) * i / panes; bars += `<line x1="${x}" y1="92" x2="${x}" y2="168" stroke="${dark}" stroke-width="3"/>`; }
-    return `<rect x="${x1}" y="90" width="${x2 - x1}" height="80" fill="url(#${g}w)" stroke="${dark}" stroke-width="4"/>${bars}<line x1="${x1}" y1="116" x2="${x2}" y2="116" stroke="${dark}" stroke-width="3"/><rect x="${x1 - 4}" y="170" width="${x2 - x1 + 8}" height="16" fill="${dark}"/>`;
-  };
-  return `<svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(p.name)} shopfront">
-<defs>
-<linearGradient id="${g}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0A1420"/><stop offset="1" stop-color="#1B1A22"/></linearGradient>
-<radialGradient id="${g}w" cx=".5" cy=".6" r=".8"><stop offset="0" stop-color="#FFE3A3"/><stop offset=".55" stop-color="#E9A74A"/><stop offset="1" stop-color="#5A3410"/></radialGradient>
-<radialGradient id="${g}l" cx=".5" cy="0" r="1"><stop offset="0" stop-color="#FFD27A" stop-opacity=".5"/><stop offset="1" stop-color="#FFD27A" stop-opacity="0"/></radialGradient>
-<linearGradient id="${g}f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${paint}"/></linearGradient>
-</defs>
-<rect width="400" height="200" fill="url(#${g}s)"/>
-<g fill="#F3EAD7" opacity=".5">${[...Array(14)].map((_, i) => `<circle cx="${(h >> i) % 400}" cy="${(i * 37 + h) % 26 + 2}" r="${i % 3 ? .7 : 1.1}"/>`).join('')}</g>
-<rect x="10" y="22" width="380" height="164" fill="#2A2420"/>
-<rect x="20" y="30" width="360" height="156" fill="url(#${g}f)"/>
-<rect x="14" y="26" width="372" height="8" fill="${dark}"/>
-<rect x="30" y="40" width="340" height="40" rx="2" fill="${dark}" stroke="#D4A646" stroke-width="2"/>
-<rect x="34" y="44" width="332" height="32" fill="none" stroke="#D4A646" stroke-opacity=".35"/>
-<text x="200" y="${60 + fs * .36}" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-weight="900" font-size="${fs.toFixed(1)}" letter-spacing="1.5" fill="#F1CF7A">${esc(name)}</text>
-<rect x="24" y="80" width="18" height="106" fill="${light}"/><rect x="358" y="80" width="18" height="106" fill="${light}"/>
-${win(winA)}${win(winB)}
-<rect x="${doorX}" y="90" width="44" height="96" fill="#120E0B" stroke="${dark}" stroke-width="4"/>
-<path d="M${doorX + 4} 104 a18 14 0 0 1 36 0z" fill="url(#${g}w)" opacity=".85"/>
-<rect x="${doorX + 8}" y="112" width="12" height="30" fill="none" stroke="${shade(paint, -.2)}" stroke-width="2"/><rect x="${doorX + 24}" y="112" width="12" height="30" fill="none" stroke="${shade(paint, -.2)}" stroke-width="2"/>
-<circle cx="${doorX + 36}" cy="150" r="2" fill="#D4A646"/>
-<g class="lampglow"><circle cx="40" cy="36" r="5" fill="#FFD27A"/><circle cx="360" cy="36" r="5" fill="#FFD27A"/></g>
-<rect x="0" y="186" width="400" height="14" fill="#141210"/>
-<ellipse cx="200" cy="188" rx="190" ry="14" fill="url(#${g}l)"/>
-</svg>`;
+function leafSVG(slot, pre){
+  const gid = 'plate' + (pre || '') + slot;
+  const c = doorColour(slot), hi = shade(c, .18), lo = shade(c, -.35);
+  const panel = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.5" fill="${lo}" opacity=".55"/><rect x="${x + 2.5}" y="${y + 2.5}" width="${w - 5}" height="${h - 5}" rx="1" fill="${c}" stroke="${hi}" stroke-width="1.2"/>`;
+  return `<svg viewBox="0 0 100 160" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="160" fill="${c}"/><rect x="0" y="0" width="100" height="160" fill="none" stroke="${lo}" stroke-width="4"/>
+${panel(10, 10, 36, 34)}${panel(54, 10, 36, 34)}${panel(10, 52, 36, 46)}${panel(54, 52, 36, 46)}${panel(10, 112, 36, 38)}${panel(54, 112, 36, 38)}
+<rect x="35" y="101.5" width="30" height="7" rx="1.5" fill="#B88A2B" stroke="#6E5214"/><rect x="38" y="104" width="24" height="2" fill="#4A3608"/>
+<circle cx="50" cy="31" r="7" fill="none" stroke="#D9AE4A" stroke-width="2.4"/><circle cx="50" cy="23.5" r="2.4" fill="#D9AE4A"/>
+<rect x="34" y="66" width="32" height="22" rx="2" fill="url(#${gid})" stroke="#6E5214"/><text x="50" y="83" text-anchor="middle" font-family="Alfa Slab One, Georgia, serif" font-size="17" fill="#2A1D06">${slot}</text>
+<circle cx="86" cy="86" r="3.2" fill="#D9AE4A" stroke="#6E5214"/>
+<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6DA8A"/><stop offset="1" stop-color="#C9962F"/></linearGradient></defs></svg>`;
+}
+function fanSVG(lit, id){
+  let bars = '';
+  for(let i = 1; i < 8; i++){ const a = Math.PI * i / 8, x = 60 - Math.cos(a) * 60, y = 60 - Math.sin(a) * 60; bars += `<line x1="60" y1="60" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`; }
+  return `<svg viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><defs><radialGradient id="f${id}" cx=".5" cy="1" r="1"><stop offset="0" stop-color="${lit ? '#FFF1C4' : '#26324D'}"/><stop offset="1" stop-color="${lit ? '#E8A84A' : '#121A2C'}"/></radialGradient></defs>
+<path d="M0 60 A60 60 0 0 1 120 60 Z" fill="url(#f${id})"/><g stroke="${lit ? '#6B4A1A' : '#3A4560'}" stroke-width="2.2">${bars}<path d="M34 60 A26 26 0 0 1 86 60" fill="none"/><path d="M14 60 A46 46 0 0 1 106 60" fill="none"/></g></svg>`;
 }
 
 /* ---------------- state ---------------- */
 let email = store.get('email', null);
 let pin = store.get('pin', null);
-let S = store.get('state', null);     // last good crawl_state
-let admin = null;                     // admin_state when unlocked
-let tab = 'route';
-let openStory = new Set();
-let pending = {};                      // slot -> true while queued offline
+let S = PREVIEW ? null : store.get('state', null);
+let admin = null;
+let tab = 'doors';
+let pending = {};
+let seen = new Set(store.get('seen', []));
 
+const drops = () => (S && S.drops) || [...Array(12)].map((_, i) => { const d = new Date(2026, 10, 21 + i, 12, 0); return dayKey(d) + 'T12:00:00'; });
+const revealed = () => !S ? [] : S.locked ? (S.revealed || []) : (S.route || []).map(r => ({slot: r.slot, pub: r.pub}));
 function plan(){
   if(!S || !S.route) return [];
-  const start = toMin((S.crawl && S.crawl.start) || '15:30');
-  let t = start;
+  let t = toMin((S.crawl && S.crawl.start) || '15:30');
   return S.route.map((r, i) => {
     const len = i < 6 ? 30 : 45;
     const walk = i ? walkMins(S.route[i - 1].pub, r.pub) : 0;
@@ -130,14 +115,44 @@ function dayInfo(){
   const days = Math.round((new Date(date + 'T12:00:00') - new Date(todayKey() + 'T12:00:00')) / 864e5);
   return {date, days, isDay: days === 0};
 }
-const prettyDate = d => new Date(d + 'T12:00:00').toLocaleDateString('en-IE', {weekday: 'long', day: 'numeric', month: 'long'});
+const isPractice = () => !!pin && S && (S.preview || dayInfo().days > 0);
+function nextDrop(){
+  const D = drops(), t = now();
+  for(let i = 0; i < D.length; i++) if(atMs(D[i]) > t) return {slot: i + 1, at: D[i]};
+  return null;
+}
+function untilText(iso){
+  const ms = atMs(iso) - now(); if(ms <= 0) return 'now';
+  const h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+  return h >= 24 ? `${longDay(iso).split(' ')[0]} at 12:00` : h ? `in ${h}h ${pad(m)}m` : `in ${m} min`;
+}
 
-/* ---------------- gate ---------------- */
+/* ---------------- sign-in ---------------- */
+function wallHTML(opts){
+  const R = new Map(revealed().map(r => [r.slot, r.pub]));
+  const D = drops(), today = todayKey();
+  let h = '<div class="doors">';
+  for(let slot = 1; slot <= 12; slot++){
+    const pub = opts.names ? R.get(slot) : null, open = R.has(slot) || (!opts.names && atMs(D[slot - 1]) <= now());
+    const isToday = open && D[slot - 1] && D[slot - 1].slice(0, 10) === today && dayInfo().days > 0;
+    const swing = opts.animate && open && !seen.has(slot);
+    const checked = !!myAt(slot);
+    const label = open ? (pub ? esc(pub.name) : 'Open') : esc(shortDay(D[slot - 1]));
+    const inside = pub && pub.photo_url ? `<img src="${esc(pub.photo_url)}" alt="" loading="lazy" onerror="this.remove()">` : '';
+    h += `<button type="button" class="door${open ? ' is-open' : ''}${isToday ? ' is-today' : ''}${swing ? ' swing' : ''}${checked ? ' is-checked' : ''}" ${open && opts.names ? `data-pub-slot="${slot}"` : 'disabled'} aria-label="${open ? (pub ? 'Door ' + slot + ': ' + esc(pub.name) : 'Door ' + slot + ', open') : 'Door ' + slot + ', opens ' + esc(longDay(D[slot - 1]))}">
+      <span class="surround"><span class="fan">${fanSVG(open, (opts.id || 'w') + slot)}</span><span class="frame"><span class="inside">${inside}</span><span class="leaf">${leafSVG(slot, opts.id || 'w')}</span></span></span>
+      <span class="step">${label}</span></button>`;
+  }
+  return h + '</div>';
+}
 function showGate(){
   $('app').hidden = true; $('gate').hidden = false;
-  $('gateArt').innerHTML = shopfront({name: '12 Pubs Of Winter', paint: '#1F4D3A'}, 'gate');
-  const days = Math.round((new Date('2026-12-02T12:00:00') - new Date(todayKey() + 'T12:00:00')) / 864e5);
-  $('gateCount').innerHTML = days > 0 ? `<b>${days}</b> ${days === 1 ? 'day' : 'days'} to go. 15:30 start.` : days === 0 ? '<b>Today.</b> 15:30 start.' : 'Done for another year.';
+  $('gateDoors').innerHTML = wallHTML({names: false, id: 'g'});
+  const n = nextDrop(), {days} = dayInfo();
+  const openCount = drops().filter(d => atMs(d) <= now()).length;
+  $('gateCount').innerHTML = days < 0 ? 'Done for another year. See you in 2027.'
+    : openCount ? `<b>${plural(openCount, 'door is', 'doors are')} open.</b> A new pub drops every day at 12:00 until the night. Sign in to see what's behind them.`
+    : `The first door opens ${n ? esc(longDay(n.at)) : 'soon'} at 12:00. One pub a day until the night.`;
   if(email) $('gEmail').value = email;
 }
 $('gateForm').addEventListener('submit', async e => {
@@ -155,154 +170,194 @@ $('gateForm').addEventListener('submit', async e => {
   }catch(err){
     msg.textContent = 'Couldn\'t get through. Check your signal and try again.';
   }finally{
-    $('gateBtn').disabled = false; $('gateBtn').textContent = 'Get in';
+    $('gateBtn').disabled = false; $('gateBtn').textContent = 'Let me in';
   }
 });
 
 /* ---------------- app ---------------- */
-function showApp(){
-  $('gate').hidden = true; $('app').hidden = false;
-  $('adminTab').hidden = !pin;
-  render();
+function showApp(){ $('gate').hidden = true; $('app').hidden = false; render(); }
+let lastKey = '';
+function viewKey(){
+  // What's on screen depends on the data, the tab, and which door or pub is current right now.
+  const P = S && !S.locked ? plan() : [], m = nowMin();
+  const cur = S && S.locked ? (nextDrop() || {}).slot : P.findIndex(x => m >= x.start && m < x.end);
+  return tab + '|' + cur + '|' + todayKey() + '|' + JSON.stringify(S) + '|' + JSON.stringify(admin) + '|' + JSON.stringify(pending);
 }
 async function refresh(quiet){
   if(!email) return;
   try{
-    S = await rpc('crawl_state_v2', {p_email: email, p_pin: pin || null});
-    store.set('state', S);
+    const next = await rpc('crawl_state_v3', {p_email: email, p_pin: pin || null});
+    S = next;
+    if(!PREVIEW) store.set('state', S);
     if(pin){ try{ admin = await rpc('admin_state', {p_pin: pin}); }catch(e){ if(e.server){ admin = null; pin = null; store.del('pin'); } } }
-    if(!quiet) render();
+    if(!quiet){ if(viewKey() !== lastKey) render(); else renderTop(); }
     flushQueue();
   }catch(e){
-    if(e.server && /not_on_list/.test(e.message)){ store.del('state'); S = null; email = null; store.del('email'); showGate(); $('gateMsg').textContent = 'You\'ve been axed. 🪓 Take it up with Kevin.'; return; }
-    if(!quiet){ render(); }
+    if(e.server && /not_on_list|axed/.test(e.message)){ store.del('state'); S = null; email = null; store.del('email'); showGate(); $('gateMsg').textContent = 'You\'ve been axed. 🪓 Take it up with Kevin.'; return; }
+    if(!quiet) renderTop();
   }
 }
 function render(){
   if(!S){ showGate(); return; }
+  if(!$('gate').hidden){ $('gate').hidden = true; $('app').hidden = false; }
   renderTop();
-  if(tab === 'route') renderRoute();
-  if(tab === 'board') renderBoard();
-  if(tab === 'map') renderMap();
-  if(tab === 'me') renderMe();
-  if(tab === 'admin') renderAdmin();
+  ({doors: renderDoors, map: renderMap, me: renderMe, admin: renderAdmin})[tab]();
   document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
   $('adminTab').hidden = !pin;
+  $('doorsLabel').textContent = S.locked ? 'Doors' : 'Route';
+  lastKey = viewKey();
+}
+function ring(n, of){
+  const R = 19, C = 2 * Math.PI * R, frac = Math.min(1, n / of);
+  return `<svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="${R}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="5"/><circle cx="23" cy="23" r="${R}" fill="none" stroke="#E0B54A" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - frac)}"/></svg><span>${n}/${of}</span>`;
 }
 function renderTop(){
-  const P = plan(), {date, days, isDay} = dayInfo(), n = new Set(myCheckins().map(c => c.slot)).size + Object.keys(pending).length;
-  $('topDate').textContent = prettyDate(date);
-  const R = 22, C = 2 * Math.PI * R, frac = Math.min(1, n / 12);
-  $('ring').innerHTML = `<svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/><circle cx="26" cy="26" r="${R}" fill="none" stroke="#D4A646" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - frac)}"/></svg><span>${n}/12</span>`;
+  const {days, isDay} = dayInfo();
   let st = '';
-  if(days > 0) st = `<b>${days} ${days === 1 ? 'day' : 'days'}</b> to go. ${P[0] ? hm(P[0].start) + ' at ' + esc(P[0].pub.name) : ''}`;
-  else if(isDay){
-    const m = nowMin(), cur = P.find(s => m >= s.start && m < s.end);
-    if(cur) st = `Now: <b>${esc(cur.pub.name)}</b> until ${hm(cur.end)}`;
-    else if(P[0] && m < P[0].start) st = `Starts <b>${hm(P[0].start)}</b> at ${esc(P[0].pub.name)}`;
-    else st = `That's the 12. <b>${esc(S.after ? S.after.name : '')}</b> next.`;
-  }else st = 'Done for another year. See you in 2027.';
+  if(S.locked){
+    const n = nextDrop(), open = revealed().length;
+    $('ring').innerHTML = ring(open, 12); $('ring').setAttribute('aria-label', open + ' of 12 doors open');
+    st = n ? (n.slot === 12 && isDay ? `Door 12 opens <b>${untilText(n.at)}</b>. The full route goes live with it.` : `Door ${n.slot} opens <b>${untilText(n.at)}</b>`) : 'All 12 doors are open.';
+  }else{
+    const P = plan(), done = new Set(myCheckins().map(c => c.slot)).size + Object.keys(pending).length;
+    $('ring').innerHTML = ring(done, 12); $('ring').setAttribute('aria-label', 'You have checked in at ' + done + ' of 12');
+    if(days > 0) st = `Admin preview. <b>${plural(days, 'day', 'days')}</b> to go.`;
+    else if(isDay){
+      const m = nowMin(), cur = P.find(s => m >= s.start && m < s.end);
+      if(cur) st = `Now: <b>${esc(cur.pub.name)}</b> until ${hm(cur.end)}`;
+      else if(P[0] && m < P[0].start) st = `Starts <b>${hm(P[0].start)}</b> at ${esc(P[0].pub.name)}`;
+      else st = `That's the 12. <b>${esc(S.after ? S.after.name : 'Home')}</b> next.`;
+    }else st = 'Done for another year. See you in 2027.';
+  }
   $('topStatus').innerHTML = st;
 }
 
-/* route */
-const opensMs = s => s.opens_at ? new Date(s.opens_at + ':00').getTime() : 0;
-function checkinBtn(s){
-  if(isPractice()) return `<button class="btn primary" type="button" data-checkin="${s.slot}">📸 Practice check-in</button>`;
-  if(Date.now() < opensMs(s)) return `<button class="btn primary" type="button" disabled>Check-in opens ${hm(toMin(s.opens_at.slice(11)))}</button>`;
-  return `<button class="btn primary" type="button" data-checkin="${s.slot}">📸 Check in</button>`;
+/* Pictures: a free photo where we have one, otherwise Street View of the front.
+   The Street View on the page is a still frame that can't trap your thumb; tap it to look around full screen. */
+const photoBad = new Set();
+function mediaHTML(p){
+  const sv = svSrc(p), ph = p.photo_url && !photoBad.has(p.id);
+  if(!ph && !sv) return '';
+  let h = '<div class="media">';
+  if(ph) h += `<img class="photo" src="${esc(p.photo_url)}" alt="${esc(p.name)}" loading="lazy" onerror="app.photoFail('${esc(p.id)}')">`;
+  else h += `<iframe src="${sv}" title="Street view of ${esc(p.name)}" tabindex="-1" aria-hidden="true" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+  if(sv) h += `<button class="media-tap" type="button" data-look="${esc(p.id)}" aria-label="Look around ${esc(p.name)} in Street View"><span>👀 Look around</span></button>`;
+  if(ph && p.photo_credit) h += `<a class="credit" href="${esc(p.photo_page || p.photo_url)}" target="_blank" rel="noopener">${esc(p.photo_credit)}</a>`;
+  return h + '</div>';
 }
-function card(s, idx, P, now){
-  const p = s.pub, mine = myAt(s.slot), queued = pending[s.slot];
-  const done = !!mine || queued, isNow = idx === now, past = now > idx;
-  const open = openStory.has(s.slot);
+function pubBody(p, kicker){
   const chips = [];
-  if(isNow) chips.push('<span class="chip now">Now</span>');
   if(p.food) chips.push('<span class="chip food">🍲 Food stop</span>');
-  if(s.swapped_from) chips.push(`<span class="chip sub">Sub for ${esc(s.swapped_from)}</span>`);
-  if(s.inPub < 18) chips.push('<span class="chip warn">Order on arrival</span>');
-  chips.push(`<span class="chip">${s.walk ? s.walk + ' min walk · ' : ''}${s.inPub} min inside</span>`);
-  let mineHtml = '';
-  if(mine){
-    mineHtml = `<div class="mine">${mine.photo ? `<img src="${photoUrl(mine.photo)}" alt="Your check-in photo" loading="lazy">` : ''}<div>Checked in ${new Date(mine.at).toTimeString().slice(0, 5)}<br><span class="${mine.located ? 'ok' : 'meh'}">${mine.located ? '📍 At the pub' : '📍 Location not confirmed'}</span></div><button type="button" data-undo="${s.slot}">Undo</button></div>`;
-  }else if(queued){
-    mineHtml = '<div class="mine"><div>Saved on your phone. It sends when you get signal.</div></div>';
-  }
-  return `<article class="card${isNow ? ' now' : ''}${done ? ' done' : ''}${past && !done ? ' past' : ''}" id="slot-${s.slot}">
-    <div class="art">${art(p, 's' + s.slot)}<span class="num">${s.slot}</span><span class="when">${hm(s.start)}</span>${done ? '<span class="stamp">Checked in</span>' : ''}</div>
-    <div class="card-body">
-      <h3>${esc(p.name)}</h3>
-      <p class="aka">${p.aka ? 'Also called ' + esc(p.aka) + ' · ' : ''}${esc(p.area)}</p>
-      <div class="chips">${chips.join('')}</div>
-      ${p.history ? `<p class="story${open ? '' : ' clamp'}">${esc(p.history)}</p><button class="more" type="button" data-story="${s.slot}">${open ? 'Less' : 'The story'}</button>` : ''}
-      ${mineHtml}
-      <div class="actions">
-        ${done ? '' : checkinBtn(s)}
-        <a class="btn ghost" href="${dirLink(p)}" target="_blank" rel="noopener">Directions</a>
-        <a class="btn ghost" href="${mapsLink(p)}" target="_blank" rel="noopener">Photos</a>
-      </div>
-    </div>
-  </article>`;
-}
-function teaser(){
-  const {date, days} = dayInfo(), people = S.people || [];
-  const mystery = [...Array(12)].map((_, i) => `<div class="mys"><div class="art">${shopfront({name: '? ? ?', paint: ['#1F4D3A','#7A1F2B','#1C3D6E','#4B2E5C','#5C3A1E','#0F5257'][i % 6]}, 'm' + i)}<span class="num">${i + 1}</span></div></div>`).join('');
-  return `<div class="hero-lock"><p class="eyebrow">${esc(prettyDate(date))} · 15:30</p>
-    <h2>${days > 1 ? days + ' days to go' : days === 1 ? 'Tomorrow' : 'Today'}</h2>
-    <p>The route drops on the day. Until then, no pub names, no check-ins and no cheating. Come back on ${esc(prettyDate(date))} and it's all here.</p></div>
-    <div class="mys-grid">${mystery}</div>
-    <h2 class="section-h">Who's in · ${people.length}</h2>
-    <div class="who-in">${people.map(p => `<span class="who-chip${p.me ? ' me' : ''}">${esc(p.who)}</span>`).join('')}</div>
-    <p class="fine">Can't make it? You know what happens. 🪓</p>`;
-}
-function renderRoute(){
-  if(S.locked){ $('v-route').innerHTML = teaser(); return; }
-  const P = plan(), {days, isDay} = dayInfo(), m = nowMin();
-  const now = isDay ? P.findIndex(s => m >= s.start && m < s.end) : (days < 0 ? 99 : -1);
-  const swapped = P.filter(s => s.swapped_from);
-  let h = '';
-  if(swapped.length) h += `<div class="banner swap">🔁 <div>${swapped.map(s => `<b>${esc(s.swapped_from)}</b> is out. <b>${esc(s.pub.name)}</b> is in at ${hm(s.start)}.`).join('<br>')}</div></div>`;
-  if(S.preview) h += `<div class="banner warn">🔑 <div><b>Admin preview.</b> Everyone else sees a countdown until ${esc(prettyDate(dayInfo().date))}. Clear your practice check-ins in Admin before the day, or they'll be on the board.</div></div>`;
-  P.forEach((s, i) => {
-    if(i) h += `<div class="leg">🚶 ${s.walk} min to ${esc(s.pub.name)}</div>`;
-    h += card(s, i, P, now);
-  });
-  const last = P[P.length - 1];
-  if(last) h += `<div class="leg">🕚 ${hm(last.end)} Leave ${esc(last.pub.name)}. That's the 12.</div>`;
-  if(S.after){
-    const a = S.after;
-    h += `<article class="card after"><div class="art">${art(a, 'after')}<span class="num">🎸</span><span class="when">After</span></div><div class="card-body"><p class="eyebrow">After party</p><h3>${esc(a.name)}</h3><p class="aka">${esc(a.area)} · open until ${esc(a.closes)}</p>${a.history ? `<p class="story">${esc(a.history)}</p>` : ''}<div class="actions"><a class="btn ghost" href="${dirLink(a)}" target="_blank" rel="noopener">Directions</a><a class="btn ghost" href="${mapsLink(a)}" target="_blank" rel="noopener">Photos</a></div></div></article>`;
-  }
-  if(S.subs && S.subs.length){
-    h += '<h2 class="section-h">The subs bench</h2><div class="subs">' + S.subs.map((p, i) => `<div class="sub-card"><div class="mini art">${art(p, 'sub' + i)}</div><div><b>${esc(p.name)}</b><span>${esc(p.area)} · ${esc(p.opens)} to ${esc(p.closes)}</span><p class="story" style="margin-top:4px;font-size:13px">${esc(p.history || '')}</p></div></div>`).join('') + '</div><p class="fine">Used if a pub is shut, full or has barred us. Kevin swaps them in and everyone\'s app updates.</p>';
-  }
-  $('v-route').innerHTML = h;
+  return `${mediaHTML(p)}<div class="feature-body">${kicker ? `<p class="kicker">${kicker}</p>` : ''}<h2>${esc(p.name)}</h2>
+    <p class="addr">${esc(p.area)}${p.opens ? `. Open ${esc(p.opens)} to ${esc(p.closes)}` : ''}.</p>${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
+    ${p.history ? `<p class="story">${esc(p.history)}</p>` : ''}
+    <div class="actions"><a class="btn ghost" href="${dirLink(p)}" target="_blank" rel="noopener">Directions</a></div></div>`;
 }
 
-/* board */
-function renderBoard(){
-  if(S.locked){ $('v-board').innerHTML = `<h2 class="section-h" style="margin-top:0">The board</h2><div class="empty">The board opens on the day. ${(S.people || []).length} signed up so far.</div>`; return; }
-  const cs = S.checkins || [], people = S.people || [];
-  const by = {};
-  people.forEach(p => { by[p.who] = {who: p.who, me: p.me, slots: new Set(), last: null}; });
-  cs.forEach(c => { const b = by[c.who] || (by[c.who] = {who: c.who, me: c.mine, slots: new Set(), last: null}); b.slots.add(c.slot); if(!b.last || c.at > b.last.at) b.last = c; });
-  const rows = Object.values(by).sort((a, b) => b.slots.size - a.slots.size || ((b.last && b.last.at) || '').localeCompare((a.last && a.last.at) || '') * -1 || a.who.localeCompare(b.who));
-  let h = '<h2 class="section-h" style="margin-top:0">The board</h2><div class="leader">';
-  rows.forEach((r, i) => {
-    const n = r.slots.size;
-    h += `<div class="lrow${r.me ? ' me' : ''}"><span class="pos">${n ? i + 1 : '–'}</span><span class="who">${esc(r.who)}${r.me ? ' (you)' : ''}<span class="at">${r.last ? 'Last seen: ' + esc(r.last.pub) + ' at ' + new Date(r.last.at).toTimeString().slice(0, 5) : 'Not started'}</span></span><span class="n">${n}</span><span class="bar"><i style="width:${n / 12 * 100}%"></i></span></div>`;
-  });
-  h += '</div><h2 class="section-h">The evidence</h2>';
-  if(!cs.length) h += '<div class="empty">No check-ins yet. First photo gets the bragging rights.</div>';
-  else h += '<div class="feed">' + cs.map(c => `<figure class="shot" style="margin:0">${c.photo ? `<img src="${photoUrl(c.photo)}" alt="${esc(c.who)} at ${esc(c.pub)}" loading="lazy">` : '<div class="noimg">🍺</div>'}<p><b>${esc(c.who)}</b>${esc(c.pub)} · ${new Date(c.at).toTimeString().slice(0, 5)}<br><span class="${c.located ? 'ok' : 'meh'}">${c.located ? '📍 at the pub' : '📍 not confirmed'}</span></p></figure>`).join('') + '</div>';
-  $('v-board').innerHTML = h;
+/* doors tab: the advent calendar before the night, the route on it */
+function renderDoors(){
+  if(!S.locked){ renderRoute(); return; }
+  const R = revealed(), D = drops(), latest = R[R.length - 1], n = nextDrop();
+  let h = `<div class="wall">${wallHTML({names: true, animate: true, id: 'a'})}<p class="wall-foot">${n ? `Door ${n.slot} opens ${n.slot === 12 ? 'on the day' : esc(longDay(n.at))} at 12:00.` : 'Every door is open.'} Tap an open door for the pub.</p></div>`;
+  if(latest){
+    const when = D[latest.slot - 1], fresh = when && when.slice(0, 10) === todayKey();
+    h += `<article class="feature" style="--fc:${doorColour(latest.slot)}">${pubBody(latest.pub, `Door ${latest.slot}, ${fresh ? 'opened today' : 'opened ' + esc(longDay(when))}`)}</article>`;
+  }else{
+    h += `<div class="panel"><h2>Nothing open yet</h2><p>Door 1 opens ${n ? esc(longDay(n.at)) : 'soon'} at 12:00. Same time every day after that until the night.</p></div>`;
+  }
+  const people = (S.people || []).length;
+  h += `<p class="axe-line">${plural(people, 'person', 'people')} signed up. Can't make it? You know what happens. 🪓</p>`;
+  $('v-doors').innerHTML = h;
+  // Remember which doors this phone has seen swing open, so the animation plays once.
+  R.forEach(r => seen.add(r.slot)); store.set('seen', [...seen]);
 }
+function renderRoute(){
+  const P = plan(), {days, isDay} = dayInfo(), m = nowMin();
+  const cur = isDay ? P.findIndex(s => m >= s.start && m < s.end) : (days < 0 ? 99 : -1);
+  let h = '';
+  const swapped = P.filter(s => s.swapped_from);
+  if(swapped.length) h += `<div class="banner swap">🔁 <div>${swapped.map(s => `<b>${esc(s.swapped_from)}</b> is out. <b>${esc(s.pub.name)}</b> is in at ${hm(s.start)}.`).join('<br>')}</div></div>`;
+  if(S.preview) h += `<div class="banner">🔑 <div><b>Admin preview.</b> Everyone else still sees the doors. Clear your practice check-ins in Admin before the night.</div></div>`;
+  h += '<div class="route">';
+  P.forEach((s, i) => { h += stopHTML(s, i, cur); });
+  const last = P[P.length - 1];
+  if(last) h += `<p class="leg">🕚 ${hm(last.end)}: that's the 12.</p>`;
+  h += '</div>';
+  const extras = [];
+  if(S.after) extras.push(`<button type="button" class="xrow" data-pub-id="${esc(S.after.id)}"><span class="xi">🎸</span><span><b>${esc(S.after.name)}</b><span>After party, ${esc(S.after.area)}</span></span></button>`);
+  (S.subs || []).forEach(p => extras.push(`<button type="button" class="xrow" data-pub-id="${esc(p.id)}"><span class="xi">🔁</span><span><b>${esc(p.name)}</b><span>Sub, ${esc(p.area)}</span></span></button>`));
+  if(extras.length) h += `<h2 class="section-h">After party and subs</h2><div class="xlist">${extras.join('')}</div>`;
+  $('v-doors').innerHTML = h;
+}
+const opensMs = s => s.opens_at ? atMs(s.opens_at + ':00') : 0;
+function checkinBtn(s, late){
+  if(isPractice()) return `<button class="btn brass" type="button" data-checkin="${s.slot}">📸 Practice check-in</button>`;
+  if(now() < opensMs(s)) return `<button class="btn brass" type="button" disabled>Check-in opens ${esc(s.opens_at.slice(11))}</button>`;
+  return `<button class="btn ${late ? 'ghost' : 'brass'}" type="button" data-checkin="${s.slot}">📸 ${late ? 'Check in late' : 'Check in'}</button>`;
+}
+function stopHTML(s, i, cur){
+  const p = s.pub, mine = myAt(s.slot), queued = pending[s.slot], done = !!mine || queued;
+  const isNow = i === cur, past = cur > i;
+  let body = '';
+  if(isNow){
+    const chips = ['<span class="chip now">Now</span>'];
+    if(p.food) chips.push('<span class="chip food">🍲 Food</span>');
+    if(s.swapped_from) chips.push(`<span class="chip sub">Sub for ${esc(s.swapped_from)}</span>`);
+    body = `<div class="chips">${chips.join('')}</div>${mediaHTML(p)}`;
+  }
+  let status = '';
+  if(mine) status = `<p class="did">✓ Checked in ${new Date(mine.at).toTimeString().slice(0, 5)} <button type="button" data-undo="${s.slot}">Undo</button></p>`;
+  else if(queued) status = '<p class="did">Saved on your phone. Sends when you get signal.</p>';
+  const showBtn = !done && (isNow || isPractice() || (past && cur !== 99));
+  const actions = isNow ? `<div class="actions">${done ? '' : checkinBtn(s)}<a class="btn ghost" href="${dirLink(p)}" target="_blank" rel="noopener">Directions</a></div>`
+    : showBtn && isPractice() ? `<div class="actions">${checkinBtn(s)}</div>`
+    : showBtn ? `<button class="late" type="button" data-checkin="${s.slot}">📸 Missed it? Check in late</button>` : '';
+  return `<article class="stop${isNow ? ' now' : ''}${done ? ' done' : ''}${past ? ' past' : ''}" id="slot-${s.slot}">
+    <span class="mini-door" style="--dc:${doorColour(s.slot)}"><i></i><b>${s.slot}</b></span>
+    <div class="stop-main"><button type="button" class="stop-head" data-pub-slot="${s.slot}"><span class="time">${hm(s.start)}</span><span class="name">${esc(p.name)}</span>${i ? `<span class="walk">${s.walk} min walk</span>` : ''}</button>
+      ${body}${status}${actions}</div></article>`;
+}
+
+/* sheets: lock the page behind them so iPhone scrolling stays inside the sheet */
+let locks = 0, lockY = 0;
+function lockPage(){
+  if(locks++ > 0) return;
+  lockY = window.scrollY;
+  Object.assign(document.body.style, {position: 'fixed', top: -lockY + 'px', left: '0', right: '0'});
+}
+function unlockPage(){
+  if(locks === 0 || --locks > 0) return;
+  Object.assign(document.body.style, {position: '', top: '', left: '', right: ''});
+  window.scrollTo(0, lockY);
+}
+let sheetPub = null;
+function openPub(p, kicker){
+  if(!sheetPub) lockPage();
+  sheetPub = {p, kicker};
+  $('psBody').innerHTML = pubBody(p, kicker);
+  $('pubSheet').hidden = false;
+  $('pubSheet').querySelector('.sheet').scrollTop = 0;
+}
+function closePub(){ if(!sheetPub) return; $('pubSheet').hidden = true; $('psBody').innerHTML = ''; sheetPub = null; unlockPage(); }
+$('psClose').onclick = closePub;
+$('pubSheet').addEventListener('click', e => { if(e.target === $('pubSheet')) closePub(); });
+let looking = false;
+function openLook(p){
+  const src = svSrc(p); if(!src) return;
+  $('svName').textContent = p.name;
+  $('svFrame').src = src;
+  $('svView').hidden = false;
+  if(!looking){ looking = true; lockPage(); }
+}
+function closeLook(){ if(!looking) return; looking = false; $('svView').hidden = true; $('svFrame').src = 'about:blank'; unlockPage(); }
+$('svDone').onclick = closeLook;
 
 /* map */
 let map = null, mapLayer = null, meMarker = null, watchId = null;
 function renderMap(){
-  $('mapLock').hidden = !S.locked; $('locate').hidden = !!S.locked;
-  if(S.locked) return;
+  const R = revealed();
+  $('mapNote').textContent = S.locked ? `The map fills in as the doors open. ${R.length} of 12 so far.` : '';
+  $('mapNote').hidden = !S.locked;
   if(!window.L){ $('map').innerHTML = '<p class="empty" style="margin:16px">The map needs signal to load.</p>'; return; }
   if(!map){
     map = L.map('map', {zoomControl: false});
@@ -310,16 +365,23 @@ function renderMap(){
     mapLayer = L.layerGroup().addTo(map);
   }
   mapLayer.clearLayers();
-  const P = plan(), {isDay} = dayInfo(), m = nowMin();
-  const now = isDay ? P.findIndex(s => m >= s.start && m < s.end) : -1;
-  L.polyline(P.map(s => [s.pub.lat, s.pub.lng]), {color: '#D4A646', weight: 4, opacity: .9, dashArray: '1 8', lineCap: 'round'}).addTo(mapLayer);
-  (S.subs || []).forEach(p => L.marker([p.lat, p.lng], {icon: L.divIcon({className: '', iconSize: [14, 14], iconAnchor: [7, 7], html: '<div class="pin sub"></div>'})}).bindPopup('<b>' + esc(p.name) + '</b><br>Sub').addTo(mapLayer));
+  const P = S.locked ? R.map(r => ({slot: r.slot, pub: r.pub})) : plan();
+  const m = nowMin(), cur = !S.locked && dayInfo().isDay ? P.findIndex(s => m >= s.start && m < s.end) : -1;
+  if(P.length > 1) L.polyline(P.map(s => [s.pub.lat, s.pub.lng]), {color: '#E0B54A', weight: 4, opacity: .9, dashArray: '1 8', lineCap: 'round'}).addTo(mapLayer);
+  if(!S.locked){
+    (S.subs || []).forEach(p => L.marker([p.lat, p.lng], {icon: L.divIcon({className: '', iconSize: [16, 16], iconAnchor: [8, 8], html: '<div class="pin sub"></div>'})}).bindPopup('<b>' + esc(p.name) + '</b><br>Sub').addTo(mapLayer));
+    if(S.after) L.marker([S.after.lat, S.after.lng], {icon: L.divIcon({className: '', iconSize: [28, 34], iconAnchor: [14, 17], html: '<div class="pin after">🎸</div>'})}).bindPopup('<b>' + esc(S.after.name) + '</b><br>After party').addTo(mapLayer);
+  }
   P.forEach((s, i) => {
-    const cls = i === now ? 'now' : (myAt(s.slot) ? 'done' : '');
-    L.marker([s.pub.lat, s.pub.lng], {zIndexOffset: i === now ? 1000 : i, icon: L.divIcon({className: '', iconSize: [26, 26], iconAnchor: [13, 13], html: `<div class="pin ${cls}">${s.slot}</div>`})})
-      .bindPopup(`<b>${esc(s.pub.name)}</b><br>${hm(s.start)} to ${hm(s.end)}`).addTo(mapLayer);
+    const cls = i === cur ? 'now' : (myAt(s.slot) ? 'done' : '');
+    L.marker([s.pub.lat, s.pub.lng], {zIndexOffset: i === cur ? 1000 : i, icon: L.divIcon({className: '', iconSize: [28, 34], iconAnchor: [14, 17], html: `<div class="pin ${cls}" style="--dc:${doorColour(s.slot)}">${s.slot}</div>`})})
+      .bindPopup(`<b>${esc(s.pub.name)}</b><br>${s.start ? hm(s.start) + ' to ' + hm(s.end) : 'Door ' + s.slot}`).addTo(mapLayer);
   });
-  setTimeout(() => { map.invalidateSize(); if(!renderMap.fitted){ map.fitBounds(P.map(s => [s.pub.lat, s.pub.lng]), {padding: [30, 30]}); renderMap.fitted = true; } }, 60);
+  setTimeout(() => {
+    map.invalidateSize();
+    const key = P.length + (S.locked ? 'l' : 'o');
+    if(renderMap.fitted !== key){ if(P.length) map.fitBounds(P.map(s => [s.pub.lat, s.pub.lng]), {padding: [40, 40], maxZoom: 16}); else map.setView([53.3575, -6.2560], 14); renderMap.fitted = key; }
+  }, 60);
 }
 $('locate').addEventListener('click', () => {
   if(!navigator.geolocation){ toast('Your phone won\'t share its location.'); return; }
@@ -332,94 +394,99 @@ $('locate').addEventListener('click', () => {
   }, () => toast('Couldn\'t get your location. Check location is allowed for this site.'), {enableHighAccuracy: true, maximumAge: 15000});
 });
 
-/* me */
+/* you */
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if(tab === 'me') renderMe(); });
 const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 function renderMe(){
   const me = S.me || {};
-  let h = `<div class="panel"><p class="eyebrow">You</p><h2>${esc(me.name || 'No name yet')}</h2><p style="color:var(--dim)">${esc(me.email)}</p>
-    <div class="field"><label for="meName">Name on the board</label><input id="meName" value="${esc(me.name || '')}" maxlength="40"></div>
+  let h = `<div class="panel"><h2>${esc(me.name || 'No name yet')}</h2><p style="color:var(--dim)">${esc(me.email)}</p>
+    <div class="field"><label for="meName">Your name</label><input id="meName" value="${esc(me.name || '')}" maxlength="40"></div>
     <div class="row"><button class="btn small" id="meSave" type="button">Save name</button><button class="btn small ghost" id="meOut" type="button">Sign out</button></div></div>`;
   if(!standalone()){
-    h += `<div class="panel"><h2>Put it on your home screen</h2>${installEvt ? '<p>One tap and it opens like an app, full screen.</p><button class="btn primary" id="install" type="button">Install the app</button>'
-      : isIOS ? '<p>In Safari, tap the Share button <b>⬆︎</b>, then <b>Add to Home Screen</b>. It opens full screen like an app.</p>'
+    h += `<div class="panel"><h2>Put it on your home screen</h2>${installEvt ? '<p>One tap and it opens full screen, like an app.</p><button class="btn brass" id="install" type="button">Install the app</button>'
+      : isIOS ? '<p>In Safari, tap Share <b>⬆︎</b>, then <b>Add to Home Screen</b>. It opens full screen, like an app.</p>'
       : '<p>Open your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>.</p>'}</div>`;
   }
-  h += `<div class="panel"><h2>Running the night?</h2><p>Enter the admin PIN to manage the guest list and swap pubs.</p>
+  h += `<div class="panel"><h2>Running the night?</h2><p>The admin PIN unlocks the guest list, pub photos and swaps.</p>
     <div class="field"><label for="pinIn">Admin PIN</label><input id="pinIn" type="password" autocomplete="off" autocapitalize="off"></div>
     <button class="btn small" id="pinGo" type="button">${pin ? 'Unlocked ✓' : 'Unlock'}</button> <span class="fine" id="pinMsg"></span></div>`;
   $('v-me').innerHTML = h;
-  $('meSave').onclick = async () => { try{ await rpc('join_crawl', {p_email: email, p_name: $('meName').value}); toast('Saved.'); refresh(); }catch(e){ toast('Couldn\'t save. Try again with signal.'); } };
-  $('meOut').onclick = () => { store.del('email'); store.del('state'); store.del('pin'); email = null; S = null; pin = null; showGate(); };
+  $('meSave').onclick = async () => { try{ await rpc('join_crawl', {p_email: email, p_name: $('meName').value}); toast('Name saved.'); refresh(); }catch(e){ toast('Couldn\'t save. Try again with signal.'); } };
+  $('meOut').onclick = () => { store.del('email'); store.del('state'); store.del('pin'); email = null; S = null; pin = null; admin = null; showGate(); };
   if($('install')) $('install').onclick = async () => { installEvt.prompt(); await installEvt.userChoice; installEvt = null; renderMe(); };
   $('pinGo').onclick = async () => {
     const v = $('pinIn').value.trim(); if(!v) return;
-    try{ admin = await rpc('admin_state', {p_pin: v}); pin = v; store.set('pin', v); $('adminTab').hidden = false; await refresh(true); toast('Admin unlocked. You can now preview the route.'); go('admin'); }
+    try{ admin = await rpc('admin_state', {p_pin: v}); pin = v; store.set('pin', v); await refresh(true); toast('Admin unlocked.'); go('admin'); }
     catch(e){ $('pinMsg').textContent = e.server ? 'Wrong PIN. Too many wrong tries locks it for an hour.' : 'No signal.'; }
   };
 }
 
 /* admin */
-let archMap = null, archLayer = null, archYear = null, confirmClear = false, confirmRemove = null;
+let archMap = null, archYear = null, confirmClear = false, confirmRemove = null;
 function renderAdmin(){
   if(!pin){ go('me'); return; }
-  if(!admin){ $('v-admin').innerHTML = '<div class="empty">Loading…</div>'; refresh(); return; }
-  const P = plan(), used = new Set(P.map(s => s.pub.name));
-  const subsAll = admin.subs_all || [];
-  let h = `<div class="panel"><p class="eyebrow">Guest list · ${admin.guests.length}</p><h2>Who gets in</h2>
-    <div class="field"><label for="aName">Name</label><input id="aName" maxlength="40" placeholder="Optional"></div>
-    <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" inputmode="email" placeholder="name@example.com"></div>
-    <div class="row"><button class="btn small primary" id="aAdd" type="button">Add to the list</button><button class="btn small ghost" id="aInvite" type="button">Copy invite message</button></div>
-    <div class="glist">${admin.guests.map(g => `<div class="gitem"><span>${esc(g.name || '–')} <small>${esc(g.email)} · ${g.checkins} in</small></span>${confirmRemove === g.email ? `<button class="btn small danger" data-rm="${esc(g.email)}" type="button">Axe ${esc(g.name || 'them')}?</button>` : `<button class="btn small ghost" data-rmask="${esc(g.email)}" type="button">🪓</button>`}</div>`).join('')}</div></div>`;
-  h += `<div class="panel"><p class="eyebrow">On the night</p><h2>Swap a pub</h2><p>Everyone's app picks up the change within 20 seconds.</p>${P.map(s => {
+  if(!admin){ $('v-admin').innerHTML = '<div class="empty" style="margin-top:16px">Loading…</div>'; refresh(); return; }
+  const P = plan(), used = new Set(P.map(s => s.pub.name)), subsAll = admin.subs_all || [];
+  const live = admin.guests.filter(g => !g.blocked).length;
+  let h = `<div class="panel"><h2>Guest list (${live})</h2><p>People add themselves with their email. Axe someone and they can't get back in until you bring them back.</p>
+    <button class="btn small" id="aInvite" type="button">Copy the link message</button>
+    <div class="glist">${admin.guests.map(g => `<div class="gitem${g.blocked ? ' axed' : ''}"><span>${esc(g.name || 'No name')} <small>${esc(g.email)}, ${g.checkins} in</small></span>${g.blocked
+      ? `<button class="btn small ghost" data-unaxe="${esc(g.email)}" type="button">Bring back</button>`
+      : confirmRemove === g.email ? `<button class="btn small danger" data-rm="${esc(g.email)}" type="button">Axe ${esc(g.name || 'them')}?</button>` : `<button class="btn small ghost" data-rmask="${esc(g.email)}" type="button" aria-label="Axe ${esc(g.name || g.email)}">🪓</button>`}</div>`).join('')}</div></div>`;
+  h += `<div class="panel"><h2>Pub photos</h2><p>Use your own photos from past crawls. Every pub shows Street View either way.</p><div class="photos">${(admin.pubs || []).map(p => `<div class="prow"><span class="th" style="${p.photo_url ? `background-image:url('${esc(p.photo_url)}')` : ''}">${p.photo_url ? '' : 'None'}</span><span><b>${esc(p.name)}</b><small>${p.photo_url ? esc(p.photo_credit || 'Your photo') : 'Street View only'}</small></span><span class="row">${p.photo_url ? `<button class="btn small ghost" data-unphoto="${esc(p.id)}" type="button">Remove</button>` : ''}<label class="btn small">Upload<input type="file" accept="image/*" data-photo="${esc(p.id)}"></label></span></div>`).join('')}</div></div>`;
+  if(P.length) h += `<div class="panel"><h2>Swap a pub</h2><p>Everyone's app picks up the change within 20 seconds.</p>${P.map(s => {
       const orig = s.swapped_from || s.pub.name;
       const opts = [`<option value="">${esc(orig)}${s.swapped_from ? ' (put back)' : ''}</option>`].concat(subsAll.map(sb => {
         const isHere = s.pub.id === sb.id, inUse = used.has(sb.name) && !isHere, early = toMin(sb.opens) > s.start;
-        return `<option value="${sb.id}" ${isHere ? 'selected' : ''} ${inUse || early ? 'disabled' : ''}>${esc(sb.name)}${inUse ? ' (in use)' : early ? ' (opens ' + sb.opens + ')' : ''}</option>`;
+        return `<option value="${esc(sb.id)}" ${isHere ? 'selected' : ''} ${inUse || early ? 'disabled' : ''}>${esc(sb.name)}${inUse ? ' (in use)' : early ? ' (opens ' + esc(sb.opens) + ')' : ''}</option>`;
       }));
-      return `<div class="swaprow"><span class="n">${s.slot}</span><select data-swap="${s.slot}" aria-label="Stop ${s.slot}">${opts.join('')}</select></div>`;
+      return `<div class="swaprow"><span class="n">${s.slot}</span><select data-swap="${s.slot}" aria-label="Pub ${s.slot}">${opts.join('')}</select></div>`;
     }).join('')}</div>`;
-  h += `<div class="panel"><h2>Check-ins</h2><p>${(S.checkins || []).length} ${(S.checkins || []).length === 1 ? 'check-in' : 'check-ins'} so far. Clear the practice ones before the night.</p>${confirmClear ? '<div class="confirm"><p>This deletes every check-in for everyone. Photos stay stored but drop off the board.</p><div class="row"><button class="btn small danger" id="clearYes" type="button">Yes, clear them all</button><button class="btn small ghost" id="clearNo" type="button">Keep them</button></div></div>' : '<button class="btn small danger" id="clearAsk" type="button">Clear all check-ins</button>'}</div>`;
-  h += `<div class="panel"><p class="eyebrow">Only you see this</p><h2>The MasterList</h2><div class="years">${admin.archive.map(y => `<button type="button" data-year="${y.year}" aria-pressed="${archYear === y.year}">${y.year}</button>`).join('')}</div><div id="archMap"></div><div class="arch-list" id="archList"></div></div>`;
-  h += `<button class="btn small ghost" id="lock" type="button">Lock admin on this phone</button>`;
+  const nc = admin.checkins_total ?? (S.checkins || []).length;
+  h += `<div class="panel"><h2>Check-ins</h2><p>${plural(nc, 'check-in', 'check-ins')} so far. Clear the practice ones before the night.</p>${confirmClear ? '<div class="confirm"><p>This deletes every check-in for everyone. There is no undo.</p><div class="row"><button class="btn small danger" id="clearYes" type="button">Clear them all</button><button class="btn small ghost" id="clearNo" type="button">Keep them</button></div></div>' : '<button class="btn small danger" id="clearAsk" type="button">Clear all check-ins</button>'}</div>`;
+  if(admin.archive.length) h += `<div class="panel"><h2>The MasterList</h2><p>Only you see this.</p><div class="years">${admin.archive.map(y => `<button type="button" data-year="${y.year}" aria-pressed="${archYear === y.year}">${y.year}</button>`).join('')}</div><div id="archMap"></div><div class="arch-list" id="archList"></div></div>`;
+  h += `<div style="padding:0 16px"><button class="btn small ghost" id="lock" type="button">Lock admin on this phone</button></div>`;
   $('v-admin').innerHTML = h;
 
-  $('aAdd').onclick = async () => {
-    const em = $('aEmail').value.trim().toLowerCase();
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ toast('Check the email.'); return; }
-    try{ await rpc('admin_guest', {p_pin: pin, p_email: em, p_name: $('aName').value, p_remove: false}); toast('Added ' + em); await refresh(); }catch(e){ toast(e.server ? e.message : 'No signal.'); }
-  };
-  $('aInvite').onclick = () => copy(`12 Pubs Of Winter. Wednesday 2 December, 15:30.\nRoute, check-ins and the board are here, guests only: ${SITE}\nUse the email I have for you. Can't make it? 🪓`);
+  $('aInvite').onclick = () => copy(`12 Pubs Of Winter. Wednesday 2 December, 15:30.\nA new pub drops every day at 12:00 until the night: ${SITE}\nPut in your name and email to see it. Can't make it? 🪓`);
   document.querySelectorAll('[data-rmask]').forEach(b => b.onclick = () => { confirmRemove = b.dataset.rmask; renderAdmin(); });
-  document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.rm, p_name: null, p_remove: true}); confirmRemove = null; toast('Axed. 🪓'); await refresh(); }catch(e){ toast('Couldn\'t remove.'); } });
+  document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.rm, p_name: null, p_remove: true}); confirmRemove = null; toast('Axed. 🪓'); await refresh(); }catch(e){ toast('Couldn\'t axe them. Try again with signal.'); } });
+  document.querySelectorAll('[data-unaxe]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.unaxe, p_name: null, p_remove: false}); toast('Brought back.'); await refresh(); }catch(e){ toast('Couldn\'t bring them back.'); } });
+  document.querySelectorAll('[data-photo]').forEach(inp => inp.onchange = async () => {
+    const f = inp.files[0]; if(!f) return;
+    toast('Uploading…');
+    try{ const blob = await compress(f, 1600); const path = 'pubs/' + inp.dataset.photo + '-' + uuid() + '.jpg'; await upload(path, blob); await rpc('admin_pub_photo', {p_pin: pin, p_pub_id: inp.dataset.photo, p_path: path}); toast('Photo added.'); await refresh(); }
+    catch(e){ toast('Upload failed. Try again with signal.'); }
+  });
+  document.querySelectorAll('[data-unphoto]').forEach(b => b.onclick = async () => { try{ await rpc('admin_pub_photo', {p_pin: pin, p_pub_id: b.dataset.unphoto, p_path: null}); toast('Photo removed.'); await refresh(); }catch(e){ toast('Couldn\'t remove it.'); } });
   document.querySelectorAll('[data-swap]').forEach(sel => sel.onchange = async () => {
     try{ await rpc('admin_swap', {p_pin: pin, p_slot: +sel.dataset.swap, p_pub_id: sel.value || null}); toast(sel.value ? 'Swapped. Everyone\'s app updates shortly.' : 'Put back.'); await refresh(); }
     catch(e){ toast(e.server ? 'Couldn\'t swap: ' + e.message : 'No signal.'); render(); }
   });
   if($('clearAsk')) $('clearAsk').onclick = () => { confirmClear = true; renderAdmin(); };
   if($('clearNo')) $('clearNo').onclick = () => { confirmClear = false; renderAdmin(); };
-  if($('clearYes')) $('clearYes').onclick = async () => { try{ await rpc('admin_clear_checkins', {p_pin: pin}); confirmClear = false; toast('All check-ins cleared.'); await refresh(); }catch(e){ toast('Couldn\'t clear.'); } };
+  if($('clearYes')) $('clearYes').onclick = async () => { try{ await rpc('admin_clear_checkins', {p_pin: pin}); confirmClear = false; toast('All check-ins cleared.'); await refresh(); }catch(e){ toast('Couldn\'t clear them.'); } };
   document.querySelectorAll('[data-year]').forEach(b => b.onclick = () => { archYear = archYear === +b.dataset.year ? null : +b.dataset.year; renderAdmin(); });
-  $('lock').onclick = async () => { pin = null; admin = null; store.del('pin'); await refresh(true); go('route'); };
-  drawArchive();
+  $('lock').onclick = async () => { pin = null; admin = null; store.del('pin'); await refresh(true); go('doors'); };
+  if(admin.archive.length) drawArchive();
 }
 const YEAR_HUE = {2011:198,2012:14,2013:262,2014:40,2015:330,2017:150,2018:24,2019:210,2021:100,2022:284,2023:52,2024:172,2025:0};
 function drawArchive(){
-  if(!window.L) return;
+  if(!window.L || !$('archMap')) return;
   archMap = L.map('archMap', {zoomControl: false, attributionControl: false});
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, className: 'darkmap'}).addTo(archMap);
   const years = admin.archive.filter(y => archYear === null || y.year === archYear), pts = [];
   years.forEach(y => {
     const col = `hsl(${YEAR_HUE[y.year] ?? (y.year * 37) % 360} 62% 58%)`;
     L.polyline(y.pubs.map(p => [p.lat, p.lng]), {color: col, weight: 2, opacity: .6}).addTo(archMap);
-    y.pubs.forEach((p, i) => { pts.push([p.lat, p.lng]); L.marker([p.lat, p.lng], {icon: L.divIcon({className: '', iconSize: [12, 12], iconAnchor: [6, 6], html: `<div class="pin yr" style="background:${col}"></div>`})}).bindPopup(`<b>${esc(p.name)}</b><br>${y.year} · stop ${i + 1}`).addTo(archMap); });
+    y.pubs.forEach((p, i) => { pts.push([p.lat, p.lng]); L.marker([p.lat, p.lng], {icon: L.divIcon({className: '', iconSize: [12, 12], iconAnchor: [6, 6], html: `<div class="pin yr" style="background:${col}"></div>`})}).bindPopup(`<b>${esc(p.name)}</b><br>${y.year}, stop ${i + 1}`).addTo(archMap); });
   });
   if(pts.length) archMap.fitBounds(pts, {padding: [16, 16]});
   const total = admin.archive.reduce((a, y) => a + y.pubs.length, 0);
   $('archList').innerHTML = archYear === null ? `${admin.archive.length} crawls, ${total} pubs. Tap a year to see its route.`
-    : (y => `<b>${y.year} · ${esc(y.district)}</b><ol>${y.pubs.map(p => '<li>' + esc(p.name) + '</li>').join('')}</ol>`)(admin.archive.find(y => y.year === archYear));
+    : (y => `<b>${y.year}, ${esc(y.district)}</b><ol>${y.pubs.map(p => '<li>' + esc(p.name) + '</li>').join('')}</ol>`)(admin.archive.find(y => y.year === archYear));
 }
 async function copy(text){
   try{ await navigator.clipboard.writeText(text); toast('Copied. Paste it into the group.'); }
@@ -430,8 +497,9 @@ async function copy(text){
 let sheetSlot = null, sheetBlob = null, sheetPos = null;
 function openSheet(slot){
   const s = plan().find(x => x.slot === slot); if(!s) return;
+  if($('sheet').hidden) lockPage();
   sheetSlot = slot; sheetBlob = null; sheetPos = null;
-  $('sheetSlot').textContent = 'Pub ' + slot + ' of 12 · ' + hm(s.start);
+  $('sheetSlot').textContent = `Pub ${slot} of 12, ${hm(s.start)}`;
   $('sheetTitle').textContent = s.pub.name;
   $('photoPrev').hidden = true; $('photoHint').hidden = false; $('photo').value = '';
   $('sheetGo').disabled = true; $('sheetMsg').textContent = '';
@@ -444,11 +512,11 @@ function openSheet(slot){
     sheetPos = pos.coords;
     const d = Math.round(km({lat: pos.coords.latitude, lng: pos.coords.longitude}, s.pub) * 1000);
     const ok = d <= 120 + Math.min(pos.coords.accuracy || 0, 80);
-    loc.innerHTML = ok ? `<span class="ok">📍 You're at the pub (${d}m)</span>` : `<span class="meh">📍 You look ${d > 999 ? (d / 1000).toFixed(1) + 'km' : d + 'm'} away. You can still check in, but the board will show it as not confirmed.</span>`;
-  }, () => { if(sheetSlot === slot) loc.innerHTML = '<span class="meh">📍 Couldn\'t get your location. The photo still counts; the board shows it as not confirmed.</span>'; },
+    loc.innerHTML = ok ? `<span class="ok">📍 You're at the pub (${d}m)</span>` : `<span class="meh">📍 You look ${d > 999 ? (d / 1000).toFixed(1) + 'km' : d + 'm'} away. You can still check in.</span>`;
+  }, () => { if(sheetSlot === slot) loc.innerHTML = '<span class="meh">📍 Couldn\'t get your location. The photo still counts.</span>'; },
   {enableHighAccuracy: true, timeout: 15000, maximumAge: 30000});
 }
-function closeSheet(){ $('sheet').hidden = true; sheetSlot = null; }
+function closeSheet(){ if($('sheet').hidden) return; $('sheet').hidden = true; sheetSlot = null; unlockPage(); }
 $('sheetCancel').onclick = closeSheet;
 $('sheet').addEventListener('click', e => { if(e.target === $('sheet')) closeSheet(); });
 $('photo').addEventListener('change', async () => {
@@ -460,14 +528,14 @@ $('photo').addEventListener('change', async () => {
     $('sheetGo').disabled = false; $('sheetMsg').textContent = '';
   }catch(e){ $('sheetMsg').textContent = 'That photo didn\'t work. Try another.'; }
 });
-async function compress(file){
+async function compress(file, max = 1280){
   let img;
   try{ img = await createImageBitmap(file, {imageOrientation: 'from-image'}); }
   catch(e){ img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); }); }
-  const max = 1280, w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
+  const w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
   const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-  return await new Promise(res => c.toBlob(res, 'image/jpeg', .74));
+  return await new Promise(res => c.toBlob(res, 'image/jpeg', .76));
 }
 $('sheetGo').addEventListener('click', async () => {
   if(!sheetBlob || sheetSlot === null) return;
@@ -478,7 +546,7 @@ $('sheetGo').addEventListener('click', async () => {
     closeSheet(); toast(isPractice() ? 'Practice check-in saved.' : 'Checked in. 🍺'); await refresh();
   }catch(e){
     if(e.server){ const m = /too_early:(\S+)/.exec(e.message); $('sheetMsg').textContent = m ? 'Not yet. Check-in for this pub opens at ' + m[1] + '.' : 'That didn\'t go through: ' + e.message; $('sheetGo').disabled = false; return; }
-    await queuePut(job); pending[job.slot] = true; closeSheet(); toast('No signal. Saved on your phone; it sends when you\'re back online.'); render();
+    await queuePut(job); pending[job.slot] = true; closeSheet(); toast('No signal. Saved on your phone. It sends when you\'re back online.'); render();
   }
 });
 async function sendCheckin(job){
@@ -487,14 +555,14 @@ async function sendCheckin(job){
   return rpc('check_in_v2', {p_email: email, p_slot: job.slot, p_photo: path, p_lat: job.lat, p_lng: job.lng, p_acc: job.acc, p_pin: isPractice() ? pin : null});
 }
 
-/* offline queue (IndexedDB holds the photo until there's signal) */
+/* offline queue: IndexedDB holds the photo until there's signal */
 function idb(){ return new Promise((res, rej) => { const r = indexedDB.open('12pubs', 1); r.onupgradeneeded = () => r.result.createObjectStore('queue', {keyPath: 'slot'}); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
 async function queuePut(job){ try{ const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('queue', 'readwrite'); t.objectStore('queue').put(job); t.oncomplete = res; t.onerror = () => rej(t.error); }); }catch(e){} }
 async function queueAll(){ try{ const db = await idb(); return await new Promise((res, rej) => { const r = db.transaction('queue').objectStore('queue').getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }catch(e){ return []; } }
 async function queueDel(slot){ try{ const db = await idb(); await new Promise(res => { const t = db.transaction('queue', 'readwrite'); t.objectStore('queue').delete(slot); t.oncomplete = res; }); }catch(e){} }
 let flushing = false;
 async function flushQueue(){
-  if(flushing || !email) return; flushing = true;
+  if(flushing || !email || PREVIEW) return; flushing = true;
   try{
     const jobs = await queueAll();
     jobs.forEach(j => { pending[j.slot] = true; });
@@ -502,7 +570,7 @@ async function flushQueue(){
       try{ await sendCheckin(j); await queueDel(j.slot); delete pending[j.slot]; toast('Sent your saved check-in. 🍺'); }
       catch(e){ if(e.server){ await queueDel(j.slot); delete pending[j.slot]; } break; }
     }
-    if(jobs.length){ S = await rpc('crawl_state_v2', {p_email: email, p_pin: pin || null}).catch(() => S); store.set('state', S); render(); }
+    if(jobs.length){ S = await rpc('crawl_state_v3', {p_email: email, p_pin: pin || null}).catch(() => S); store.set('state', S); render(); }
   }finally{ flushing = false; }
 }
 window.addEventListener('online', () => { flushQueue(); refresh(); });
@@ -515,17 +583,24 @@ function go(t){
   render();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.tab)));
-$('ring').addEventListener('click', () => go('board'));
+$('ring').addEventListener('click', () => go('doors'));
+const allPubs = () => [...revealed().map(r => r.pub), ...(S && S.subs || []), S && S.after].filter(Boolean);
+function findPub(slot){ const r = revealed().find(x => x.slot === slot); return r && r.pub; }
 document.addEventListener('click', async e => {
   const c = e.target.closest('[data-checkin]'); if(c){ openSheet(+c.dataset.checkin); return; }
-  const st = e.target.closest('[data-story]'); if(st){ const n = +st.dataset.story; openStory.has(n) ? openStory.delete(n) : openStory.add(n); renderRoute(); return; }
+  const ps = e.target.closest('[data-pub-slot]'); if(ps){ const slot = +ps.dataset.pubSlot, p = findPub(slot), d = drops()[slot - 1]; if(p) openPub(p, S.locked ? `Door ${slot}, opened ${esc(longDay(d))}` : `Pub ${slot} of 12`); return; }
+  const pi = e.target.closest('[data-pub-id]'); if(pi){ const p = allPubs().find(x => x.id === pi.dataset.pubId); if(p) openPub(p, S.after && p.id === S.after.id ? 'After party' : 'On the subs bench'); return; }
+  const lk = e.target.closest('[data-look]'); if(lk){ const p = allPubs().find(x => x.id === lk.dataset.look); if(p) openLook(p); return; }
   const u = e.target.closest('[data-undo]'); if(u){ try{ await rpc('undo_check_in', {p_email: email, p_slot: +u.dataset.undo}); toast('Check-in removed.'); refresh(); }catch(err){ toast('Couldn\'t undo. Try again with signal.'); } }
 });
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ if(looking) closeLook(); else if(!$('pubSheet').hidden) closePub(); else if(!$('sheet').hidden) closeSheet(); } });
 setInterval(() => { if(email && document.visibilityState === 'visible' && navigator.onLine) refresh(); else if(S) renderTop(); }, 20000);
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && email) refresh(); });
+window.app = {refresh, render, go, get S(){ return S; },
+  photoFail(id){ if(photoBad.has(id)) return; photoBad.add(id); if(sheetPub && sheetPub.p.id === id) $('psBody').innerHTML = pubBody(sheetPub.p, sheetPub.kicker); else render(); }};
 
 /* ---------------- boot ---------------- */
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if('serviceWorker' in navigator && !PREVIEW) navigator.serviceWorker.register('sw.js').catch(() => {});
 if(email && S){ showApp(); refresh(); }
 else if(email){ refresh(true).then(() => S ? showApp() : showGate()); }
 else showGate();

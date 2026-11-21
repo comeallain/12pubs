@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=31">
+<link rel="stylesheet" href="app.css?v=32">
 </head>
 <body>
 
@@ -47,13 +47,12 @@
     <div class="fascia small"><span class="screw"></span><h1>12 Pubs of Winter</h1><span class="screw"></span></div>
     <div class="top-row">
       <p class="top-status" id="topStatus"></p>
-      <button class="ring" id="ring" type="button" aria-label="Your progress"></button>
+      <button class="ring" id="ring" type="button" aria-label="Doors open"></button>
     </div>
   </header>
 
   <main id="views">
     <section class="view" id="v-doors" data-view="doors"></section>
-    <section class="view" id="v-board" data-view="board" hidden></section>
     <section class="view" id="v-map" data-view="map" hidden><p class="map-note" id="mapNote"></p><div id="map"></div><button class="fab" id="locate" type="button">Where am I?</button></section>
     <section class="view" id="v-admin" data-view="admin" hidden></section>
     <section class="view" id="v-me" data-view="me" hidden></section>
@@ -61,7 +60,6 @@
 
   <nav class="tabs" aria-label="Sections">
     <button type="button" data-tab="doors" aria-current="page"><span class="ti">🚪</span><span id="doorsLabel">Doors</span></button>
-    <button type="button" data-tab="board"><span class="ti">🏆</span>Board</button>
     <button type="button" data-tab="map"><span class="ti">🗺️</span>Map</button>
     <button type="button" data-tab="me"><span class="ti">🪓</span>You</button>
     <button type="button" data-tab="admin" id="adminTab" hidden><span class="ti">🔑</span>Admin</button>
@@ -96,6 +94,13 @@
   </div>
 </div>
 
+<!-- STREET VIEW, FULL SCREEN -->
+<div class="viewer" id="svView" role="dialog" aria-modal="true" aria-labelledby="svName" hidden>
+  <div class="viewer-bar"><b id="svName"></b><button class="btn brass small" id="svDone" type="button">Done</button></div>
+  <iframe id="svFrame" title="Street view" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <p class="viewer-hint">Drag to look around. Tap Done to go back.</p>
+</div>
+
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -120,7 +125,7 @@
     window.PREVIEW_DATA = d;
     try{ sessionStorage.setItem('pv:code', code); }catch(e){}
     document.getElementById('pvGate').remove();
-    await load('preview.js?v=31'); await load('app.js?v=31');
+    await load('preview.js?v=32'); await load('app.js?v=32');
   }
   var saved=null; try{ saved=sessionStorage.getItem('pv:code'); }catch(e){}
   if(saved) go(saved).catch(function(){});
