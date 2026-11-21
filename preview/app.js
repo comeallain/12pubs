@@ -139,7 +139,7 @@ function wallHTML(opts){
     const checked = !!myAt(slot);
     const label = open ? (pub ? esc(pub.name) : 'Open') : esc(shortDay(D[slot - 1]));
     const inside = pub && pub.photo_url ? `<img src="${esc(pub.photo_url)}" alt="" loading="lazy" onerror="this.remove()">` : '';
-    h += `<button type="button" class="door${open ? ' is-open' : ''}${isToday ? ' is-today' : ''}${swing ? ' swing' : ''}${checked ? ' is-checked' : ''}" ${open && opts.names ? `data-pub-slot="${slot}"` : 'disabled'} aria-label="${open && pub ? 'Door ' + slot + ': ' + esc(pub.name) : 'Door ' + slot + ', opens ' + esc(longDay(D[slot - 1]))}">
+    h += `<button type="button" class="door${open ? ' is-open' : ''}${isToday ? ' is-today' : ''}${swing ? ' swing' : ''}${checked ? ' is-checked' : ''}" ${open && opts.names ? `data-pub-slot="${slot}"` : 'disabled'} aria-label="${open ? (pub ? 'Door ' + slot + ': ' + esc(pub.name) : 'Door ' + slot + ', open') : 'Door ' + slot + ', opens ' + esc(longDay(D[slot - 1]))}">
       <span class="surround"><span class="fan">${fanSVG(open, (opts.id || 'w') + slot)}</span><span class="frame"><span class="inside">${inside}</span><span class="leaf">${leafSVG(slot)}</span></span></span>
       <span class="step">${label}</span></button>`;
   }
