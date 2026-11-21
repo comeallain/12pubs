@@ -1,7 +1,7 @@
 /* Keeps the app shell on the phone so it opens without signal.
    Data from the database is never cached here; the app keeps its own copy. */
-const CACHE = '12pubs-v20';
-const SHELL = ['./', 'index.html', 'app.css?v=20', 'app.js?v=20', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
+const CACHE = '12pubs-v21';
+const SHELL = ['./', 'index.html', 'app.css?v=21', 'app.js?v=21', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
 
 self.addEventListener('install', e => {

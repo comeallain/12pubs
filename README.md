@@ -1,14 +1,16 @@
 # 12 Pubs Of Winter
 
-The app for the annual crawl. Guests only: everything private (the route,
-check-ins, photos and past years) lives in the database and is only handed to
-emails on the guest list. Nothing private is stored in this repo.
+The app for the annual crawl. Anyone with the link signs up with their name
+and email. The route, map and check-ins stay hidden until the crawl day
+(2 December 2026, Dublin time), and each pub's check-in opens 15 minutes
+before its slot. The database enforces both rules. Past years are
+only visible with the admin PIN. Nothing private is stored in this repo.
 
-**Live:** https://comeallain.github.io/12pubs/
+**Live:** https://12pubs.eu
 
 ## Using it
 
-- Open the link on your phone, enter your name and the email Kevin has for you.
+- Open the link on your phone and enter your name and email.
 - Add it to your home screen and it runs like an app, full screen, and opens
   without signal.
 - On the night, tap **Check in** at each pub: take a photo, and the app checks
@@ -18,7 +20,8 @@ emails on the guest list. Nothing private is stored in this repo.
 
 Open **You**, enter the admin PIN, and an **Admin** tab appears with:
 
-- the guest list (add or axe people),
+- a preview of the route before the day, with practice check-ins,
+- the guest list (axe someone and they can't sign up again),
 - pub swaps for the night (everyone's app updates within about 20 seconds),
 - a button to clear practice check-ins,
 - the MasterList of past years, visible only with the PIN.
@@ -33,3 +36,4 @@ Open **You**, enter the admin PIN, and an **Admin** tab appears with:
 | `sw.js` | Lets the app open offline. Bump `CACHE` when you change files. |
 | `manifest.json` | Home-screen app details. |
 | `2026/` | Old link, now forwards to the app. |
+| `CNAME` | Tells GitHub to serve the site at 12pubs.eu. Leave it. |

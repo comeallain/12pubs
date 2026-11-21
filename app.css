@@ -189,3 +189,19 @@ main{max-width:640px;margin:0 auto}
 .lampglow{animation:glow 3.5s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 @media (min-width:700px){.feed{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* photos, credits, locked teaser */
+.art img{z-index:0}
+.credit{position:absolute;left:8px;bottom:6px;z-index:2;max-width:70%;padding:2px 6px;border-radius:4px;background:rgba(11,23,18,.75);color:var(--dim);font-size:10.5px;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub-card .mini .credit{display:none}
+.hero-lock{padding:22px 18px;border-radius:18px;background:radial-gradient(120% 120% at 0% 0%,#24463A,var(--panel));border:1px solid rgba(212,166,70,.4)}
+.hero-lock h2{font-size:40px;font-weight:900;color:var(--gilt2);margin:6px 0 8px;line-height:1}
+.hero-lock p{margin:0;color:#DCD3BF}
+.mys-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.mys{border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.mys .art{aspect-ratio:4/3}
+.mys .num{width:26px;height:26px;font-size:13px;left:6px;top:6px}
+.who-in{display:flex;flex-wrap:wrap;gap:6px}
+.who-chip{padding:6px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-weight:700;font-size:13.5px}
+.who-chip.me{border-color:var(--gilt);color:var(--gilt2)}
+.map-lock{margin:16px}

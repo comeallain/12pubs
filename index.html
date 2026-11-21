@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>12 Pubs Of Winter</title>
-<meta name="description" content="12 Pubs Of Winter. Guests only.">
+<meta name="description" content="12 Pubs Of Winter. Wednesday 2 December.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0B1712">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,8 +12,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="12 Pubs">
 <meta property="og:title" content="12 Pubs Of Winter">
-<meta property="og:description" content="Guests only. Bring your email.">
-<meta property="og:image" content="https://comeallain.github.io/12pubs/icon-512.png">
+<meta property="og:description" content="Wednesday 2 December, 15:30. The route drops on the day.">
+<meta property="og:image" content="https://12pubs.eu/icon-512.png">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=20">
+<link rel="stylesheet" href="app.css?v=21">
 </head>
 <body>
 
@@ -36,11 +36,11 @@
       <label for="gName">Your name</label>
       <input id="gName" name="name" autocomplete="given-name" placeholder="What the lads call you" maxlength="40">
       <label for="gEmail">Email</label>
-      <input id="gEmail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="The one Kevin has" required>
+      <input id="gEmail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
       <button class="btn primary big" id="gateBtn" type="submit">Get in</button>
       <p class="gate-msg" id="gateMsg" role="alert"></p>
     </form>
-    <p class="fine">Guests only. Your email is checked against the list and used for nothing else.</p>
+    <p class="fine">Your email keeps your check-ins yours. It isn't shared or used for anything else.</p>
   </div>
 </section>
 
@@ -60,7 +60,7 @@
   <main id="views">
     <section class="view" id="v-route" data-view="route"></section>
     <section class="view" id="v-board" data-view="board" hidden></section>
-    <section class="view" id="v-map" data-view="map" hidden><div id="map"></div><button class="fab" id="locate" type="button">Where am I?</button></section>
+    <section class="view" id="v-map" data-view="map" hidden><div class="empty map-lock" id="mapLock" hidden>🗺️ The map appears on the day, along with the route.</div><div id="map"></div><button class="fab" id="locate" type="button">Where am I?</button></section>
     <section class="view" id="v-admin" data-view="admin" hidden></section>
     <section class="view" id="v-me" data-view="me" hidden></section>
   </main>
@@ -97,6 +97,6 @@
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>

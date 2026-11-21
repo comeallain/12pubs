@@ -25,6 +25,14 @@ function km(a, b){
 }
 const walkMins = (a, b) => Math.max(1, Math.round(km(a, b) * 1.2 / 4.5 * 60));
 const mapsLink = p => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ', ' + p.area + ', Dublin') + (p.maps_id ? '&query_place_id=' + p.maps_id : '');
+const dirLink = p => 'https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=' + encodeURIComponent(p.name + ', ' + p.area + ', Dublin') + (p.maps_id ? '&destination_place_id=' + p.maps_id : '');
+/* Card picture: a free-licensed photo with its credit where one exists, otherwise the illustration. */
+function art(p, id){
+  if(!p.photo_url) return shopfront(p, id);
+  return shopfront(p, id) + `<img src="${esc(p.photo_url)}" alt="${esc(p.name)}" loading="lazy" onerror="if(this.nextElementSibling)this.nextElementSibling.remove();this.remove()">` +
+    `<a class="credit" href="${esc(p.photo_page || p.photo_url)}" target="_blank" rel="noopener">${esc(p.photo_credit || 'Photo credit')}</a>`;
+}
+const isPractice = () => !!pin && S && (S.preview || dayInfo().days > 0);
 const photoUrl = path => SB + '/storage/v1/object/public/checkins/' + path;
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 3200); }
 
@@ -110,7 +118,7 @@ function plan(){
   return S.route.map((r, i) => {
     const len = i < 6 ? 30 : 45;
     const walk = i ? walkMins(S.route[i - 1].pub, r.pub) : 0;
-    const s = {slot: r.slot, pub: r.pub, swapped_from: r.swapped_from, start: t, end: t + len, walk, inPub: len - walk};
+    const s = {slot: r.slot, pub: r.pub, swapped_from: r.swapped_from, opens_at: r.opens_at, start: t, end: t + len, walk, inPub: len - walk};
     t += len;
     return s;
   });
@@ -140,12 +148,12 @@ $('gateForm').addEventListener('submit', async e => {
   $('gateBtn').disabled = true; $('gateBtn').textContent = 'Checking the list…'; msg.textContent = '';
   try{
     const r = await rpc('join_crawl', {p_email: em, p_name: nm || null});
-    if(!r.ok){ msg.textContent = 'That email isn\'t on the guest list. Ask Kevin to add you, or try the email he has for you.'; return; }
+    if(!r.ok){ msg.textContent = r.reason === 'axed' ? 'You\'ve been axed. 🪓 Take it up with Kevin.' : 'That doesn\'t look like an email address.'; return; }
     email = r.email; store.set('email', email);
     await refresh(true);
     showApp();
   }catch(err){
-    msg.textContent = 'Couldn\'t reach the list. Check your signal and try again.';
+    msg.textContent = 'Couldn\'t get through. Check your signal and try again.';
   }finally{
     $('gateBtn').disabled = false; $('gateBtn').textContent = 'Get in';
   }
@@ -160,13 +168,13 @@ function showApp(){
 async function refresh(quiet){
   if(!email) return;
   try{
-    S = await rpc('crawl_state', {p_email: email});
+    S = await rpc('crawl_state_v2', {p_email: email, p_pin: pin || null});
     store.set('state', S);
     if(pin){ try{ admin = await rpc('admin_state', {p_pin: pin}); }catch(e){ if(e.server){ admin = null; pin = null; store.del('pin'); } } }
     if(!quiet) render();
     flushQueue();
   }catch(e){
-    if(e.server && /not_on_list/.test(e.message)){ store.del('state'); S = null; email = null; store.del('email'); showGate(); $('gateMsg').textContent = 'You\'ve been taken off the list. 🪓'; return; }
+    if(e.server && /not_on_list/.test(e.message)){ store.del('state'); S = null; email = null; store.del('email'); showGate(); $('gateMsg').textContent = 'You\'ve been axed. 🪓 Take it up with Kevin.'; return; }
     if(!quiet){ render(); }
   }
 }
@@ -198,6 +206,12 @@ function renderTop(){
 }
 
 /* route */
+const opensMs = s => s.opens_at ? new Date(s.opens_at + ':00').getTime() : 0;
+function checkinBtn(s){
+  if(isPractice()) return `<button class="btn primary" type="button" data-checkin="${s.slot}">📸 Practice check-in</button>`;
+  if(Date.now() < opensMs(s)) return `<button class="btn primary" type="button" disabled>Check-in opens ${hm(toMin(s.opens_at.slice(11)))}</button>`;
+  return `<button class="btn primary" type="button" data-checkin="${s.slot}">📸 Check in</button>`;
+}
 function card(s, idx, P, now){
   const p = s.pub, mine = myAt(s.slot), queued = pending[s.slot];
   const done = !!mine || queued, isNow = idx === now, past = now > idx;
@@ -215,7 +229,7 @@ function card(s, idx, P, now){
     mineHtml = '<div class="mine"><div>Saved on your phone. It sends when you get signal.</div></div>';
   }
   return `<article class="card${isNow ? ' now' : ''}${done ? ' done' : ''}${past && !done ? ' past' : ''}" id="slot-${s.slot}">
-    <div class="art">${shopfront(p, 's' + s.slot)}<span class="num">${s.slot}</span><span class="when">${hm(s.start)}</span>${done ? '<span class="stamp">Checked in</span>' : ''}</div>
+    <div class="art">${art(p, 's' + s.slot)}<span class="num">${s.slot}</span><span class="when">${hm(s.start)}</span>${done ? '<span class="stamp">Checked in</span>' : ''}</div>
     <div class="card-body">
       <h3>${esc(p.name)}</h3>
       <p class="aka">${p.aka ? 'Also called ' + esc(p.aka) + ' · ' : ''}${esc(p.area)}</p>
@@ -223,19 +237,32 @@ function card(s, idx, P, now){
       ${p.history ? `<p class="story${open ? '' : ' clamp'}">${esc(p.history)}</p><button class="more" type="button" data-story="${s.slot}">${open ? 'Less' : 'The story'}</button>` : ''}
       ${mineHtml}
       <div class="actions">
-        ${done ? '' : `<button class="btn primary" type="button" data-checkin="${s.slot}">📸 Check in</button>`}
-        <a class="btn ghost" href="${mapsLink(p)}" target="_blank" rel="noopener">Directions</a>
+        ${done ? '' : checkinBtn(s)}
+        <a class="btn ghost" href="${dirLink(p)}" target="_blank" rel="noopener">Directions</a>
+        <a class="btn ghost" href="${mapsLink(p)}" target="_blank" rel="noopener">Photos</a>
       </div>
     </div>
   </article>`;
 }
+function teaser(){
+  const {date, days} = dayInfo(), people = S.people || [];
+  const mystery = [...Array(12)].map((_, i) => `<div class="mys"><div class="art">${shopfront({name: '? ? ?', paint: ['#1F4D3A','#7A1F2B','#1C3D6E','#4B2E5C','#5C3A1E','#0F5257'][i % 6]}, 'm' + i)}<span class="num">${i + 1}</span></div></div>`).join('');
+  return `<div class="hero-lock"><p class="eyebrow">${esc(prettyDate(date))} · 15:30</p>
+    <h2>${days > 1 ? days + ' days to go' : days === 1 ? 'Tomorrow' : 'Today'}</h2>
+    <p>The route drops on the day. Until then, no pub names, no check-ins and no cheating. Come back on ${esc(prettyDate(date))} and it's all here.</p></div>
+    <div class="mys-grid">${mystery}</div>
+    <h2 class="section-h">Who's in · ${people.length}</h2>
+    <div class="who-in">${people.map(p => `<span class="who-chip${p.me ? ' me' : ''}">${esc(p.who)}</span>`).join('')}</div>
+    <p class="fine">Can't make it? You know what happens. 🪓</p>`;
+}
 function renderRoute(){
+  if(S.locked){ $('v-route').innerHTML = teaser(); return; }
   const P = plan(), {days, isDay} = dayInfo(), m = nowMin();
   const now = isDay ? P.findIndex(s => m >= s.start && m < s.end) : (days < 0 ? 99 : -1);
   const swapped = P.filter(s => s.swapped_from);
   let h = '';
   if(swapped.length) h += `<div class="banner swap">🔁 <div>${swapped.map(s => `<b>${esc(s.swapped_from)}</b> is out. <b>${esc(s.pub.name)}</b> is in at ${hm(s.start)}.`).join('<br>')}</div></div>`;
-  if(days > 0) h += `<div class="banner">🍺 <div>Practice check-ins are fine before the night. Kevin clears them before 2 December.</div></div>`;
+  if(S.preview) h += `<div class="banner warn">🔑 <div><b>Admin preview.</b> Everyone else sees a countdown until ${esc(prettyDate(dayInfo().date))}. Clear your practice check-ins in Admin before the day, or they'll be on the board.</div></div>`;
   P.forEach((s, i) => {
     if(i) h += `<div class="leg">🚶 ${s.walk} min to ${esc(s.pub.name)}</div>`;
     h += card(s, i, P, now);
@@ -244,16 +271,17 @@ function renderRoute(){
   if(last) h += `<div class="leg">🕚 ${hm(last.end)} Leave ${esc(last.pub.name)}. That's the 12.</div>`;
   if(S.after){
     const a = S.after;
-    h += `<article class="card after"><div class="art">${shopfront(a, 'after')}<span class="num">🎸</span><span class="when">After</span></div><div class="card-body"><p class="eyebrow">After party</p><h3>${esc(a.name)}</h3><p class="aka">${esc(a.area)} · open until ${esc(a.closes)}</p>${a.history ? `<p class="story">${esc(a.history)}</p>` : ''}<div class="actions"><a class="btn ghost" href="${mapsLink(a)}" target="_blank" rel="noopener">Directions</a></div></div></article>`;
+    h += `<article class="card after"><div class="art">${art(a, 'after')}<span class="num">🎸</span><span class="when">After</span></div><div class="card-body"><p class="eyebrow">After party</p><h3>${esc(a.name)}</h3><p class="aka">${esc(a.area)} · open until ${esc(a.closes)}</p>${a.history ? `<p class="story">${esc(a.history)}</p>` : ''}<div class="actions"><a class="btn ghost" href="${dirLink(a)}" target="_blank" rel="noopener">Directions</a><a class="btn ghost" href="${mapsLink(a)}" target="_blank" rel="noopener">Photos</a></div></div></article>`;
   }
   if(S.subs && S.subs.length){
-    h += '<h2 class="section-h">The subs bench</h2><div class="subs">' + S.subs.map((p, i) => `<div class="sub-card"><div class="mini">${shopfront(p, 'sub' + i)}</div><div><b>${esc(p.name)}</b><span>${esc(p.area)} · ${esc(p.opens)} to ${esc(p.closes)}</span><p class="story" style="margin-top:4px;font-size:13px">${esc(p.history || '')}</p></div></div>`).join('') + '</div><p class="fine">Used if a pub is shut, full or has barred us. Kevin swaps them in and everyone\'s app updates.</p>';
+    h += '<h2 class="section-h">The subs bench</h2><div class="subs">' + S.subs.map((p, i) => `<div class="sub-card"><div class="mini art">${art(p, 'sub' + i)}</div><div><b>${esc(p.name)}</b><span>${esc(p.area)} · ${esc(p.opens)} to ${esc(p.closes)}</span><p class="story" style="margin-top:4px;font-size:13px">${esc(p.history || '')}</p></div></div>`).join('') + '</div><p class="fine">Used if a pub is shut, full or has barred us. Kevin swaps them in and everyone\'s app updates.</p>';
   }
   $('v-route').innerHTML = h;
 }
 
 /* board */
 function renderBoard(){
+  if(S.locked){ $('v-board').innerHTML = `<h2 class="section-h" style="margin-top:0">The board</h2><div class="empty">The board opens on the day. ${(S.people || []).length} signed up so far.</div>`; return; }
   const cs = S.checkins || [], people = S.people || [];
   const by = {};
   people.forEach(p => { by[p.who] = {who: p.who, me: p.me, slots: new Set(), last: null}; });
@@ -273,6 +301,8 @@ function renderBoard(){
 /* map */
 let map = null, mapLayer = null, meMarker = null, watchId = null;
 function renderMap(){
+  $('mapLock').hidden = !S.locked; $('locate').hidden = !!S.locked;
+  if(S.locked) return;
   if(!window.L){ $('map').innerHTML = '<p class="empty" style="margin:16px">The map needs signal to load.</p>'; return; }
   if(!map){
     map = L.map('map', {zoomControl: false});
@@ -326,7 +356,7 @@ function renderMe(){
   if($('install')) $('install').onclick = async () => { installEvt.prompt(); await installEvt.userChoice; installEvt = null; renderMe(); };
   $('pinGo').onclick = async () => {
     const v = $('pinIn').value.trim(); if(!v) return;
-    try{ admin = await rpc('admin_state', {p_pin: v}); pin = v; store.set('pin', v); $('adminTab').hidden = false; toast('Admin unlocked.'); go('admin'); }
+    try{ admin = await rpc('admin_state', {p_pin: v}); pin = v; store.set('pin', v); $('adminTab').hidden = false; await refresh(true); toast('Admin unlocked. You can now preview the route.'); go('admin'); }
     catch(e){ $('pinMsg').textContent = e.server ? 'Wrong PIN. Too many wrong tries locks it for an hour.' : 'No signal.'; }
   };
 }
@@ -372,7 +402,7 @@ function renderAdmin(){
   if($('clearNo')) $('clearNo').onclick = () => { confirmClear = false; renderAdmin(); };
   if($('clearYes')) $('clearYes').onclick = async () => { try{ await rpc('admin_clear_checkins', {p_pin: pin}); confirmClear = false; toast('All check-ins cleared.'); await refresh(); }catch(e){ toast('Couldn\'t clear.'); } };
   document.querySelectorAll('[data-year]').forEach(b => b.onclick = () => { archYear = archYear === +b.dataset.year ? null : +b.dataset.year; renderAdmin(); });
-  $('lock').onclick = () => { pin = null; admin = null; store.del('pin'); go('route'); };
+  $('lock').onclick = async () => { pin = null; admin = null; store.del('pin'); await refresh(true); go('route'); };
   drawArchive();
 }
 const YEAR_HUE = {2011:198,2012:14,2013:262,2014:40,2015:330,2017:150,2018:24,2019:210,2021:100,2022:284,2023:52,2024:172,2025:0};
@@ -445,16 +475,16 @@ $('sheetGo').addEventListener('click', async () => {
   $('sheetGo').disabled = true; $('sheetMsg').textContent = 'Sending…';
   try{
     await sendCheckin(job);
-    closeSheet(); toast('Checked in. 🍺'); await refresh();
+    closeSheet(); toast(isPractice() ? 'Practice check-in saved.' : 'Checked in. 🍺'); await refresh();
   }catch(e){
-    if(e.server){ $('sheetMsg').textContent = 'That didn\'t go through: ' + e.message; $('sheetGo').disabled = false; return; }
+    if(e.server){ const m = /too_early:(\S+)/.exec(e.message); $('sheetMsg').textContent = m ? 'Not yet. Check-in for this pub opens at ' + m[1] + '.' : 'That didn\'t go through: ' + e.message; $('sheetGo').disabled = false; return; }
     await queuePut(job); pending[job.slot] = true; closeSheet(); toast('No signal. Saved on your phone; it sends when you\'re back online.'); render();
   }
 });
 async function sendCheckin(job){
   const path = '2026/' + uuid() + '.jpg';
   await upload(path, job.blob);
-  return rpc('check_in', {p_email: email, p_slot: job.slot, p_photo: path, p_lat: job.lat, p_lng: job.lng, p_acc: job.acc});
+  return rpc('check_in_v2', {p_email: email, p_slot: job.slot, p_photo: path, p_lat: job.lat, p_lng: job.lng, p_acc: job.acc, p_pin: isPractice() ? pin : null});
 }
 
 /* offline queue (IndexedDB holds the photo until there's signal) */
@@ -472,7 +502,7 @@ async function flushQueue(){
       try{ await sendCheckin(j); await queueDel(j.slot); delete pending[j.slot]; toast('Sent your saved check-in. 🍺'); }
       catch(e){ if(e.server){ await queueDel(j.slot); delete pending[j.slot]; } break; }
     }
-    if(jobs.length){ S = await rpc('crawl_state', {p_email: email}).catch(() => S); store.set('state', S); render(); }
+    if(jobs.length){ S = await rpc('crawl_state_v2', {p_email: email, p_pin: pin || null}).catch(() => S); store.set('state', S); render(); }
   }finally{ flushing = false; }
 }
 window.addEventListener('online', () => { flushQueue(); refresh(); });
