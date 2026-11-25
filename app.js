@@ -456,7 +456,7 @@ function renderMe(){
 }
 
 /* admin */
-let archMap = null, archYear = null, confirmClear = false, confirmRemove = null;
+let archMap = null, archYear = null, confirmClear = false, confirmRemove = null, editGuest = null, confirmDelete = null, confirmWipe = false;
 function renderAdmin(){
   if(!pin){ go('me'); return; }
   if(!admin){ $('v-admin').innerHTML = '<div class="empty" style="margin-top:16px">Loading…</div>'; refresh(); return; }
@@ -464,9 +464,13 @@ function renderAdmin(){
   const live = admin.guests.filter(g => !g.blocked).length;
   let h = `<div class="panel"><h2>Guest list (${live})</h2><p>People add themselves with just a name — the phone remembers them. Axe someone and that phone can't get back in until you bring them back.</p>
     <button class="btn small" id="aInvite" type="button">Copy the link message</button>
-    <div class="glist">${admin.guests.map(g => `<div class="gitem${g.blocked ? ' axed' : ''}"><span>${esc(g.name || 'No name')} <small>${g.email.includes('@') ? esc(g.email) + ', ' : ''}${g.checkins} in</small></span>${g.blocked
-      ? `<button class="btn small ghost" data-unaxe="${esc(g.email)}" type="button">Bring back</button>`
-      : confirmRemove === g.email ? `<button class="btn small danger" data-rm="${esc(g.email)}" type="button">Axe ${esc(g.name || 'them')}?</button>` : `<button class="btn small ghost" data-rmask="${esc(g.email)}" type="button" aria-label="Axe ${esc(g.name || g.email)}">🪓</button>`}</div>`).join('')}</div></div>`;
+    <div class="glist">${admin.guests.map(g => {
+      if(editGuest === g.email) return `<div class="gitem"><input class="gedit" id="geditIn" value="${esc(g.name || '')}" maxlength="40" aria-label="New name"><span class="row"><button class="btn small brass" data-gsave="${esc(g.email)}" type="button">Save</button><button class="btn small ghost" data-gcancel type="button">Cancel</button></span></div>`;
+      return `<div class="gitem${g.blocked ? ' axed' : ''}"><span>${esc(g.name || 'No name')} <small>${g.email.includes('@') ? esc(g.email) + ', ' : ''}${g.checkins} in</small></span><span class="row">${g.blocked
+        ? `<button class="btn small ghost" data-unaxe="${esc(g.email)}" type="button">Bring back</button>${confirmDelete === g.email ? `<button class="btn small danger" data-del="${esc(g.email)}" type="button">Gone for good?</button>` : `<button class="btn small ghost" data-delask="${esc(g.email)}" type="button">Strike off</button>`}`
+        : `<button class="btn small ghost" data-gedit="${esc(g.email)}" type="button" aria-label="Rename ${esc(g.name || g.email)}">✏️</button>${confirmRemove === g.email ? `<button class="btn small danger" data-rm="${esc(g.email)}" type="button">Axe ${esc(g.name || 'them')}?</button>` : `<button class="btn small ghost" data-rmask="${esc(g.email)}" type="button" aria-label="Axe ${esc(g.name || g.email)}">🪓</button>`}`}</span></div>`;
+    }).join('')}</div>
+    ${admin.guests.length ? (confirmWipe ? `<div class="confirm"><p>This clears the whole list and every check-in — you included. Everyone just puts their name in again.</p><div class="row"><button class="btn small danger" id="wipeYes" type="button">Clear the list</button><button class="btn small ghost" id="wipeNo" type="button">Keep it</button></div></div>` : `<button class="btn small danger" id="wipeAsk" type="button" style="margin-top:10px">Clear the whole list</button>`) : ''}</div>`;
   h += `<div class="panel"><h2>Pub photos</h2><p>Use your own photos from past crawls. Every pub shows Street View either way.</p><div class="photos">${(admin.pubs || []).map(p => `<div class="prow"><span class="th" style="${p.photo_url ? `background-image:url('${esc(p.photo_url)}')` : ''}">${p.photo_url ? '' : 'None'}</span><span><b>${esc(p.name)}</b><small>${p.photo_url ? esc(p.photo_credit || 'Your photo') : 'Street View only'}</small></span><span class="row">${p.photo_url ? `<button class="btn small ghost" data-unphoto="${esc(p.id)}" type="button">Remove</button>` : ''}<label class="btn small">Upload<input type="file" accept="image/*" data-photo="${esc(p.id)}"></label></span></div>`).join('')}</div></div>`;
   if(P.length) h += `<div class="panel"><h2>Swap a pub</h2><p>Everyone's app picks up the change within 20 seconds.</p>${P.map(s => {
       const orig = s.swapped_from || s.pub.name;
@@ -483,6 +487,22 @@ function renderAdmin(){
   $('v-admin').innerHTML = h;
 
   $('aInvite').onclick = () => copy(`12 Pubs Of Winter. Wednesday 2 December, 15:30.\nA new pub drops every day at 12:00 until the night: ${SITE}\nPut in your name to see it. Can't make it? 🪓`);
+  document.querySelectorAll('[data-gedit]').forEach(b => b.onclick = () => { editGuest = b.dataset.gedit; renderAdmin(); const i = $('geditIn'); if(i){ i.focus(); i.select(); } });
+  document.querySelectorAll('[data-gcancel]').forEach(b => b.onclick = () => { editGuest = null; renderAdmin(); });
+  document.querySelectorAll('[data-gsave]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest_rename', {p_pin: pin, p_email: b.dataset.gsave, p_name: $('geditIn').value.trim()}); editGuest = null; toast('Name changed.'); await refresh(); }catch(e){ toast('Couldn\'t rename. Try again with signal.'); } });
+  document.querySelectorAll('[data-delask]').forEach(b => b.onclick = () => { confirmDelete = b.dataset.delask; renderAdmin(); });
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest_delete', {p_pin: pin, p_email: b.dataset.del}); confirmDelete = null; toast('Struck off the list.'); await refresh(); }catch(e){ toast('Couldn\'t do it. Try again with signal.'); } });
+  if($('wipeAsk')) $('wipeAsk').onclick = () => { confirmWipe = true; renderAdmin(); };
+  if($('wipeNo')) $('wipeNo').onclick = () => { confirmWipe = false; renderAdmin(); };
+  if($('wipeYes')) $('wipeYes').onclick = async () => {
+    try{
+      await rpc('admin_clear_guests', {p_pin: pin});
+      confirmWipe = false; admin = null;
+      // You're off the list too now: back to the door, PIN stays on this phone.
+      store.del('state'); S = null; email = null; store.del('email'); showGate();
+      $('gateMsg').textContent = 'List cleared. Put your name in to get back on it.';
+    }catch(e){ toast('Couldn\'t clear it.'); }
+  };
   document.querySelectorAll('[data-rmask]').forEach(b => b.onclick = () => { confirmRemove = b.dataset.rmask; renderAdmin(); });
   document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.rm, p_name: null, p_remove: true}); confirmRemove = null; toast('Axed. 🪓'); await refresh(); }catch(e){ toast('Couldn\'t axe them. Try again with signal.'); } });
   document.querySelectorAll('[data-unaxe]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.unaxe, p_name: null, p_remove: false}); toast('Brought back.'); await refresh(); }catch(e){ toast('Couldn\'t bring them back.'); } });
