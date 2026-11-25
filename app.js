@@ -169,9 +169,15 @@ $('gateForm').addEventListener('submit', async e => {
   const msg = $('gateMsg');
   if(!nm){ msg.textContent = 'Go on, we need something to call you.'; return; }
   $('gateBtn').disabled = true; $('gateBtn').textContent = 'Checking the list…'; msg.textContent = '';
-  const key = myKey();
+  let key = myKey();
   try{
-    const r = await rpc('join_crawl_v2', {p_key: key, p_name: nm});
+    let r = await rpc('join_crawl_v2', {p_key: key, p_name: nm});
+    if(!r.ok && r.reason === 'bad_key' && email){
+      // This phone remembers a key that's been cleared off the list: start fresh.
+      email = null; store.del('email'); store.del('state');
+      key = myKey();
+      r = await rpc('join_crawl_v2', {p_key: key, p_name: nm});
+    }
     if(!r.ok){ msg.textContent = r.reason === 'axed' ? 'You\'ve been axed. 🪓 Take it up with Kevin.' : 'Couldn\'t get you in. Try again.'; return; }
     email = key; store.set('email', email); store.set('name', nm);
     await refresh(true);
