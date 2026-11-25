@@ -11,9 +11,20 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="12 Pubs">
-<meta property="og:title" content="12 Pubs Of Winter">
-<meta property="og:description" content="A new door opens every day at noon. Wednesday 2 December, 15:30.">
-<meta property="og:image" content="https://12pubs.eu/icon-512.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="12 Pubs of Winter">
+<meta property="og:title" content="12 Pubs of Winter">
+<meta property="og:description" content="Twelve pubs, twelve doors, one a day at noon. Dublin, Wednesday 2 December. Put your name in at the door.">
+<meta property="og:url" content="https://12pubs.eu/">
+<meta property="og:image" content="http://12pubs.eu/og.jpg">
+<meta property="og:image:secure_url" content="https://12pubs.eu/og.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Red Dublin pub front with 12 Pubs of Winter in brass lettering">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="12 Pubs of Winter">
+<meta name="twitter:image" content="https://12pubs.eu/og.jpg">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -33,7 +44,7 @@
   <p class="gate-count" id="gateCount"></p>
   <form id="gateForm" class="gate-form" novalidate>
     <label for="gName">Name at the door</label>
-    <input id="gName" name="nickname" autocomplete="off" placeholder="What the lads call you" maxlength="40" required
+    <input id="gName" name="nickname" autocomplete="off" maxlength="40" required
            data-1p-ignore data-lpignore="true" data-protonpass-ignore="true">
     <button class="btn brass big" id="gateBtn" type="submit">Let me in</button>
     <p class="gate-msg" id="gateMsg" role="alert"></p>
