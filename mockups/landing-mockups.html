@@ -1,0 +1,265 @@
+<title>Landing Page Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Studio sheet for three phone mockups of the 12pubs.eu gate. Single dark look by choice — it is a night-time subject. */
+:root{
+  --sheet:#101418; --ink:#E9E4D8; --ink-dim:#97A0AD; --rule:#2A3138;
+  /* app palette, lifted from app.css */
+  --night:#14213D; --deep:#0E1830; --surface:#1B2B4D; --line:rgba(201,195,182,.18);
+  --granite:#C9C3B6; --granite2:#A39D90;
+  --brass:#E0B54A; --brass2:#F3D27C; --brassdk:#8F6F22; --glow:#FFD98A;
+  --fascia:#0F2A22; --text:#F2EDE3; --dim:#AEB8CB; --red:#EE7666;
+  --display:"Alfa Slab One",Rockwell,Georgia,serif;
+  --body:"Atkinson Hyperlegible",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sheet);color:var(--ink);font:16px/1.55 var(--body)}
+.wrap{max-width:1360px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.intro{max-width:720px;margin-bottom:36px}
+header.intro h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,38px);letter-spacing:.02em;color:var(--brass2);text-wrap:balance;margin:0 0 10px}
+header.intro p{margin:0 0 8px;color:var(--ink-dim)}
+header.intro b{color:var(--ink)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:36px 28px;align-items:start}
+.opt{display:grid;gap:14px}
+.opt .tag{display:flex;align-items:baseline;gap:10px}
+.opt .tag .letter{font-family:var(--display);font-size:22px;color:var(--brass);border:2px solid var(--brassdk);border-radius:8px;padding:2px 10px}
+.opt .tag h2{font-family:var(--body);font-weight:700;font-size:17px;margin:0}
+.opt ul{margin:0;padding-left:18px;color:var(--ink-dim);font-size:14px}
+.opt ul li{margin:3px 0}
+.opt ul li::marker{color:var(--brassdk)}
+
+/* ---- phone frame ---- */
+.phone{width:100%;max-width:375px;justify-self:start;border:10px solid #000;border-radius:38px;overflow:hidden;background:var(--night);box-shadow:0 24px 50px -20px rgba(0,0,0,.8),0 0 0 1px #2c3238}
+.screen{min-height:720px;display:flex;flex-direction:column;padding:26px 16px 28px;position:relative;overflow:hidden}
+
+/* ---- shared app pieces ---- */
+.fascia{position:relative;display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 16px;background:linear-gradient(180deg,#14352B,var(--fascia));border:3px solid #0A1C17;box-shadow:inset 0 0 0 2px var(--brassdk),inset 0 0 0 5px #0A1C17,inset 0 0 0 6px rgba(224,181,74,.35),0 10px 24px -10px rgba(0,0,0,.7)}
+.fascia h1{text-align:center;color:var(--brass2);font-family:var(--display);font-weight:400;font-size:34px;line-height:1;text-transform:uppercase;letter-spacing:.04em;margin:0;text-shadow:0 1px 0 #6A5016,0 2px 0 #3A2C0C,0 0 18px rgba(243,210,124,.25)}
+.screw{flex:none;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#F7E3A6,var(--brassdk));box-shadow:0 1px 1px rgba(0,0,0,.6)}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;border-radius:10px;font-weight:700;font-size:18px;background:linear-gradient(180deg,var(--brass2),var(--brass));border:2px solid var(--brass);color:#22190A}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.field input{width:100%;min-height:52px;padding:12px 14px;border-radius:10px;border:2px solid var(--line);background:var(--surface);font:inherit;color:var(--text)}
+.fine{font-size:13px;color:var(--dim);margin:0;text-align:center}
+
+/* ---- doors (small) ---- */
+.doors{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px}
+.door{display:flex;flex-direction:column;text-align:center}
+.door .fan{height:17px;border-radius:999px 999px 0 0;background:radial-gradient(120% 200% at 50% 100%,#26324D,#121A2C);border:2px solid var(--granite2);border-bottom:0}
+.door.open .fan{background:radial-gradient(120% 200% at 50% 100%,#FFF1C4,#E8A84A)}
+.door .leaf{position:relative;aspect-ratio:10/15;background:var(--dc);border:2px solid var(--granite2);border-top:3px solid var(--granite2);box-shadow:inset 0 0 0 2px rgba(0,0,0,.28)}
+.door .leaf::before{content:"";position:absolute;inset:14% 16% 12%;background:
+  linear-gradient(rgba(0,0,0,.26),rgba(0,0,0,.26)) 50% 0/8% 100% no-repeat,
+  linear-gradient(rgba(0,0,0,.26),rgba(0,0,0,.26)) 0 47%/100% 7% no-repeat;
+  border:2px solid rgba(0,0,0,.26)}
+.door .leaf i{position:absolute;left:50%;top:40%;translate:-50% 0;width:9px;height:9px;border:2px solid #D9AE4A;border-radius:50%}
+.door.open .leaf{background:radial-gradient(90% 70% at 60% 40%,#FFE3A0,#E39A3E 55%,#5A2C0E 100%)}
+.door.open .leaf::before{display:none}
+.door.open .leaf i{display:none}
+.door .step{margin-top:0;padding:4px 2px;background:linear-gradient(180deg,#D7D1C4,#A9A396);color:#1E2433;font-size:10.5px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;border-radius:0 0 2px 2px}
+.door.open .step{background:linear-gradient(180deg,#F6E6B8,#D9BC6E)}
+
+/* =========== A · The Snug =========== */
+.a-when{display:flex;justify-content:center;margin:0}
+.a-when span{display:inline-block;padding:7px 18px;background:#0B1712;border:2px solid var(--brassdk);border-radius:4px;color:var(--brass2);font-weight:700;font-size:15px;box-shadow:0 8px 16px -8px rgba(0,0,0,.8);position:relative}
+.a-when span::before,.a-when span::after{content:"";position:absolute;top:-14px;width:2px;height:14px;background:var(--brassdk)}
+.a-when span::before{left:22%}.a-when span::after{right:22%}
+.a-lamp{position:absolute;inset:0 0 auto;height:280px;background:radial-gradient(60% 100% at 50% 0,rgba(255,217,138,.14),transparent 70%);pointer-events:none}
+.a-count{display:flex;align-items:center;gap:10px;color:var(--brass2);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.1em}
+.a-count::before,.a-count::after{content:"";height:1px;background:var(--brassdk);flex:1;opacity:.6}
+
+/* =========== B · One Door =========== */
+.b-screen{background:
+  radial-gradient(80% 46% at 50% 30%,rgba(255,217,138,.16),transparent 70%),
+  linear-gradient(180deg,#0B1226 0%,var(--night) 55%,#0E1830 100%)}
+.b-kicker{text-align:center;color:var(--dim);font-weight:700;font-size:13px;letter-spacing:.22em;text-transform:uppercase;margin:0}
+.b-title{text-align:center;font-family:var(--display);font-weight:400;color:var(--brass2);font-size:52px;line-height:.95;text-transform:uppercase;letter-spacing:.02em;margin:6px 0 0;text-shadow:0 2px 0 #3A2C0C,0 0 26px rgba(243,210,124,.3)}
+.b-title small{display:block;font-size:24px;letter-spacing:.14em;color:var(--brass)}
+.bigdoor{position:relative;width:168px;margin:18px auto 0}
+.bigdoor .surround{padding:10px 10px 0;background:linear-gradient(90deg,#B3AC9E,var(--granite) 20%,var(--granite) 80%,#ADA698);border-radius:999px 999px 0 0/90px 90px 0 0;box-shadow:0 18px 30px -12px rgba(0,0,0,.85)}
+.bigdoor .fan{height:44px;border-radius:999px 999px 0 0;background:radial-gradient(120% 200% at 50% 100%,#FFF1C4,#E8A84A);position:relative;overflow:hidden;border-bottom:5px solid var(--granite2)}
+.bigdoor .fan::before{content:"";position:absolute;inset:0;background:
+  conic-gradient(from 245deg at 50% 100%,transparent 0 9deg,#6B4A1A 9deg 11deg,transparent 11deg 29deg,#6B4A1A 29deg 31deg,transparent 31deg 49deg,#6B4A1A 49deg 51deg,transparent 51deg 69deg,#6B4A1A 69deg 71deg,transparent 71deg 89deg,#6B4A1A 89deg 91deg,transparent 91deg 110deg)}
+.bigdoor .leaf{position:relative;aspect-ratio:10/15;background:#1F5B3A;border:3px solid var(--granite2);box-shadow:inset 0 0 0 4px rgba(0,0,0,.3)}
+.bigdoor .panel{position:absolute;background:rgba(0,0,0,.28);border-radius:2px}
+.bigdoor .panel::after{content:"";position:absolute;inset:3px;background:#1F5B3A;border:1.5px solid rgba(255,255,255,.14);border-radius:1px}
+.bigdoor .knob{position:absolute;right:16%;top:52%;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#F7E3A6,var(--brassdk))}
+.bigdoor .plate{position:absolute;left:50%;top:34%;translate:-50% 0;width:44px;height:30px;border-radius:3px;background:linear-gradient(180deg,#F6DA8A,#C9962F);border:2px solid #6E5214;display:grid;place-items:center;font-family:var(--display);font-size:19px;color:#2A1D06}
+.bigdoor .wreath{position:absolute;left:50%;top:10%;translate:-50% 0;width:46px;height:46px;border-radius:50%;border:8px solid #2E5E33;box-shadow:inset 0 0 0 1px #17381C,0 1px 2px rgba(0,0,0,.5)}
+.bigdoor .wreath::before{content:"";position:absolute;left:50%;top:-7px;translate:-50% 0;width:10px;height:7px;background:#B3262E;border-radius:2px}
+.bigdoor .stepb{margin:0 -10px;padding:7px 6px;background:linear-gradient(180deg,#D7D1C4,#A9A396);border-radius:2px;box-shadow:0 10px 16px -6px rgba(0,0,0,.8)}
+.bigdoor .stepb b{display:block;text-align:center;color:#1E2433;font-size:12.5px;line-height:1.25}
+.b-snow i{position:absolute;width:3px;height:3px;border-radius:50%;background:rgba(242,237,227,.5)}
+
+/* =========== C · The Terrace =========== */
+.c-title{text-align:center;font-family:var(--display);font-weight:400;color:var(--brass2);font-size:40px;line-height:1;text-transform:uppercase;margin:0;text-shadow:0 2px 0 #3A2C0C,0 0 20px rgba(243,210,124,.25)}
+.c-sub{text-align:center;color:var(--dim);margin:6px 0 0;font-size:14.5px}
+.terrace{margin:16px -16px 0;display:block;width:calc(100% + 32px)}
+.c-legend{display:flex;justify-content:center;gap:18px;color:var(--dim);font-size:12.5px;margin:0}
+.c-legend b{color:var(--brass2)}
+.spacer{flex:1}
+@media (max-width:760px){.phone{justify-self:center}}
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Three doors into 12pubs.eu</h1>
+    <p>Mockups only — nothing is changed on the live site. All three drop the <i>"we don't want to offend anyone…"</i> footnote from the landing page (it stays inside the app after sign-in), put the name field higher, and tighten the copy.</p>
+    <p><b>Same name-only sign-in in all three.</b> The differences are the hero and how much of the advent-calendar wall you show before someone signs in.</p>
+  </header>
+
+  <div class="row">
+
+    <!-- ============ A ============ -->
+    <section class="opt">
+      <div class="tag"><span class="letter">A</span><h2>The Snug — polish what's there</h2></div>
+      <div class="phone"><div class="screen">
+        <div class="a-lamp"></div>
+        <div class="fascia"><span class="screw"></span><h1>12 Pubs<br>Of Winter</h1><span class="screw"></span></div>
+        <div style="height:22px"></div>
+        <p class="a-when"><span>Wednesday 2 December · 15:30</span></p>
+        <div style="height:26px"></div>
+        <div class="field">
+          <label>Name at the door</label>
+          <input value="" placeholder="What the lads call you" readonly>
+        </div>
+        <div style="height:12px"></div>
+        <div class="btn">Let me in</div>
+        <div style="height:8px"></div>
+        <p class="fine">No email. No password. This phone remembers you.</p>
+        <div style="height:26px"></div>
+        <p class="a-count">5 doors open</p>
+        <div style="height:12px"></div>
+        <div class="doors" id="doorsA"></div>
+        <div class="spacer"></div>
+        <p class="fine">A new pub behind a new door, every day at noon.</p>
+      </div></div>
+      <ul>
+        <li>Keeps the painted fascia and the full door wall — just reordered: name first, doors as the tease below.</li>
+        <li>Hanging date board and lamplight glow give it a hero moment without new artwork.</li>
+        <li>Least change, quickest to ship.</li>
+      </ul>
+    </section>
+
+    <!-- ============ B ============ -->
+    <section class="opt">
+      <div class="tag"><span class="letter">B</span><h2>One Door — poster hero</h2></div>
+      <div class="phone"><div class="screen b-screen">
+        <div class="b-snow" id="snowB"></div>
+        <p class="b-kicker">Dublin · Wednesday 2 December</p>
+        <h1 class="b-title">12 Pubs <small>of Winter</small></h1>
+        <div class="bigdoor">
+          <div class="surround">
+            <div class="fan"></div>
+            <div class="leaf">
+              <span class="panel" style="left:12%;top:8%;width:32%;height:18%"></span>
+              <span class="panel" style="right:12%;top:8%;width:32%;height:18%"></span>
+              <span class="panel" style="left:12%;top:56%;width:32%;height:34%"></span>
+              <span class="panel" style="right:12%;top:56%;width:32%;height:34%"></span>
+              <span class="wreath"></span>
+              <span class="plate">5</span>
+              <span class="knob"></span>
+            </div>
+          </div>
+          <div class="stepb"><b>Today's door is open</b></div>
+        </div>
+        <div style="height:10px"></div>
+        <p class="fine">One pub a day until the night itself.<br>Five doors are already open.</p>
+        <div class="spacer"></div>
+        <div class="field">
+          <label>Name at the door</label>
+          <input value="" placeholder="What the lads call you" readonly>
+        </div>
+        <div style="height:12px"></div>
+        <div class="btn">Let me in</div>
+        <div style="height:8px"></div>
+        <p class="fine">No email. No password. This phone remembers you.</p>
+      </div></div>
+      <ul>
+        <li>One big Georgian door — today's — as the hero; the full wall of twelve is the reward <b>after</b> sign-in.</li>
+        <li>Poster-style stacked type, wreath and snow for the season. Most dramatic change.</li>
+        <li>Front page stays fresh by itself: the door number and colour roll forward each day.</li>
+      </ul>
+    </section>
+
+    <!-- ============ C ============ -->
+    <section class="opt">
+      <div class="tag"><span class="letter">C</span><h2>The Terrace — a street at night</h2></div>
+      <div class="phone"><div class="screen b-screen">
+        <h1 class="c-title">12 Pubs<br>Of Winter</h1>
+        <p class="c-sub">Twelve doors on one Dublin street.<br>A new one opens every day at noon.</p>
+        <svg class="terrace" id="terraceC" viewBox="0 0 407 150" aria-hidden="true"></svg>
+        <p class="c-legend"><span><b>5 lit</b> and open</span><span>7 dark until their day</span></p>
+        <div style="height:22px"></div>
+        <div class="field">
+          <label>Name at the door</label>
+          <input value="" placeholder="What the lads call you" readonly>
+        </div>
+        <div style="height:12px"></div>
+        <div class="btn">Let me in</div>
+        <div style="height:8px"></div>
+        <p class="fine">No email. No password. This phone remembers you.</p>
+        <div class="spacer"></div>
+        <p class="fine">Wednesday 2 December · first pint 15:30</p>
+      </div></div>
+      <ul>
+        <li>The twelve doors become one drawn terrace — houses, lamp posts, lit fanlights — instead of a grid of cards.</li>
+        <li>Open doors glow warm; locked ones sit dark. Reads as a scene, not a UI component.</li>
+        <li>Most hand-made feel; the drawing is new work and the door wall moves inside the app.</li>
+      </ul>
+    </section>
+
+  </div>
+</div>
+
+<script>
+/* A: the twelve small doors, five open (today 25 Nov, crawl 2 Dec) */
+(function(){
+  const DOOR=['#B3262E','#1F5B3A','#1D4E89','#E0A526','#5E2B4F','#1E6E6A','#C4571B','#2B2B30','#3E7CB1','#6B1F25','#5E6B2E','#7E5A8C'];
+  const locked=['Wed 26','Thu 27','Fri 28','Sat 29','Sun 30','Mon 1','On the day'];
+  let h='';
+  for(let s=1;s<=12;s++){
+    const open=s<=5;
+    h+='<div class="door'+(open?' open':'')+'"><span class="fan"></span><span class="leaf" style="--dc:'+DOOR[s-1]+'"><i></i></span><span class="step">'+(open?'Open':locked[s-6])+'</span></div>';
+  }
+  document.getElementById('doorsA').innerHTML=h;
+
+  /* B: a little snow, fixed positions so the frame is stable */
+  let sn='';
+  for(let i=0;i<26;i++){
+    const x=(i*149)%360, y=(i*83)%300, o=.25+(i%4)*.12;
+    sn+='<i style="left:'+x+'px;top:'+y+'px;opacity:'+o+'"></i>';
+  }
+  document.getElementById('snowB').innerHTML=sn;
+
+  /* C: terrace of twelve houses */
+  const svg=document.getElementById('terraceC');
+  let t='<rect width="407" height="150" fill="#0B1226"/>';
+  t+='<rect y="128" width="407" height="22" fill="#1A2238"/>';            // street
+  t+='<rect y="126" width="407" height="4" fill="#2A3352"/>';             // kerb
+  for(let s=1;s<=12;s++){
+    const x=6+(s-1)*33.4, open=s<=5, c=DOOR[s-1];
+    const win=open?'#FFE3A0':'#1C2742', winO=open?.95:.8;
+    t+='<g>';
+    t+='<rect x="'+x+'" y="18" width="31" height="110" fill="'+(s%2?'#23191B':'#1F1517')+'"/>';            // brick front
+    t+='<rect x="'+x+'" y="18" width="31" height="3" fill="#3A2E2A"/>';                                     // parapet
+    t+='<rect x="'+(x+6)+'" y="30" width="19" height="22" rx="1.5" fill="'+win+'" opacity="'+winO+'"/>';    // upper window
+    t+='<path d="M'+(x+6.5)+' 41 h19 M'+(x+15.5)+' 30 v22" stroke="#0B1226" stroke-width="1.6"/>';          // glazing bars
+    t+='<path d="M'+(x+7)+' 78 a8.5 8.5 0 0 1 17 0 z" fill="'+(open?'#FFF1C4':'#1C2742')+'"/>';             // fanlight
+    t+='<rect x="'+(x+7)+'" y="79" width="17" height="46" fill="'+c+'" stroke="#0B1226" stroke-width="1"/>';// door
+    t+='<rect x="'+(x+9.5)+'" y="84" width="5" height="12" fill="rgba(0,0,0,.3)"/><rect x="'+(x+16.5)+'" y="84" width="5" height="12" fill="rgba(0,0,0,.3)"/>';
+    t+='<rect x="'+(x+9.5)+'" y="102" width="5" height="17" fill="rgba(0,0,0,.3)"/><rect x="'+(x+16.5)+'" y="102" width="5" height="17" fill="rgba(0,0,0,.3)"/>';
+    t+='<circle cx="'+(x+21.5)+'" cy="103" r="1.3" fill="#D9AE4A"/>';
+    if(open) t+='<path d="M'+(x+3)+' 128 L'+(x+15.5)+' 96 L'+(x+28)+' 128 Z" fill="#FFD98A" opacity=".12"/>';
+    t+='</g>';
+  }
+  /* two lamp posts */
+  for(const lx of [3,403]){
+    t+='<rect x="'+(lx-1)+'" y="60" width="2.4" height="68" fill="#39404F"/>';
+    t+='<circle cx="'+lx+'" cy="56" r="4.6" fill="#FFE3A0"/><circle cx="'+lx+'" cy="56" r="10" fill="#FFD98A" opacity=".18"/>';
+  }
+  svg.innerHTML=t;
+})();
+</script>

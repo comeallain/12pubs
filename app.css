@@ -71,12 +71,26 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;l
 .door:disabled{cursor:default}
 .wall-foot{margin:0;padding:0 14px 16px;color:#F0D9C6;font-size:14px;text-align:center}
 
-/* ---------- sign-in ---------- */
-.gate{min-height:100vh;min-height:100dvh;max-width:520px;margin:0 auto;padding:calc(18px + var(--safe-t)) 16px calc(28px + var(--safe-b))}
-.gate-when{text-align:center;margin:12px 0 14px;color:var(--brass2);font-weight:700}
-.gate-wall{border-radius:4px}
-.gate-wall .doors{gap:12px 8px;padding:14px 12px}
-.gate-count{margin:14px 0 6px;font-size:16px}
+/* ---------- sign-in: a winter poster, one Georgian door under lamplight ---------- */
+.gate{position:relative;min-height:100vh;min-height:100dvh;max-width:520px;margin:0 auto;padding:calc(26px + var(--safe-t)) 16px calc(28px + var(--safe-b));
+  background:radial-gradient(80% 46% at 50% 26%,rgba(255,217,138,.16),transparent 70%),linear-gradient(180deg,#0B1226 0%,var(--night) 55%,var(--deep) 100%)}
+.gate::before{content:"";position:absolute;inset:0 0 45%;pointer-events:none;opacity:.5;
+  background:radial-gradient(2px 2px at 12% 18%,#F2EDE3 50%,transparent 51%),radial-gradient(1.6px 1.6px at 34% 64%,#F2EDE3 50%,transparent 51%),radial-gradient(2px 2px at 55% 32%,#F2EDE3 50%,transparent 51%),radial-gradient(1.4px 1.4px at 71% 76%,#F2EDE3 50%,transparent 51%),radial-gradient(2px 2px at 88% 22%,#F2EDE3 50%,transparent 51%),radial-gradient(1.5px 1.5px at 24% 88%,#F2EDE3 50%,transparent 51%),radial-gradient(1.8px 1.8px at 93% 58%,#F2EDE3 50%,transparent 51%),radial-gradient(1.4px 1.4px at 45% 90%,#F2EDE3 50%,transparent 51%),radial-gradient(1.7px 1.7px at 65% 12%,#F2EDE3 50%,transparent 51%),radial-gradient(1.4px 1.4px at 5% 50%,#F2EDE3 50%,transparent 51%);
+  background-size:230px 210px}
+.gate-kicker{margin:0;text-align:center;color:var(--dim);font-weight:700;font-size:13px;letter-spacing:.22em;text-transform:uppercase}
+.gate-title{margin:8px 0 0;text-align:center;color:var(--brass2);font-size:clamp(44px,14vw,58px);line-height:.95;text-transform:uppercase;letter-spacing:.02em;text-shadow:0 2px 0 #3A2C0C,0 0 26px rgba(243,210,124,.3)}
+.gate-title small{display:block;font-family:inherit;font-size:.46em;letter-spacing:.14em;color:var(--brass)}
+.bigdoor{width:min(176px,46vw);margin:22px auto 0}
+.bigdoor .surround{display:block;position:relative;padding:9px 9px 0;background:linear-gradient(90deg,#B3AC9E,var(--granite) 20%,var(--granite) 80%,#ADA698);border-radius:999px 999px 0 0/90px 90px 0 0;box-shadow:0 18px 30px -12px rgba(0,0,0,.85)}
+.bigdoor .fan{display:block;position:relative;aspect-ratio:8/3;border-radius:999px 999px 0 0;overflow:hidden;background:#101828;border-bottom:4px solid var(--granite2)}
+.bigdoor .fan svg{position:absolute;inset:0;width:100%;height:100%}
+.bigdoor .frame{display:block;position:relative;aspect-ratio:10/15;background:#0B0F1A}
+.bigdoor .leaf,.bigdoor .leaf svg{display:block;position:absolute;inset:0;width:100%;height:100%}
+.bigdoor .wreath{position:absolute;left:50%;top:9%;translate:-50% 0;width:28%;height:19%;border-radius:50%;border:8px solid #2E5E33;box-shadow:inset 0 0 0 1px #17381C,0 1px 2px rgba(0,0,0,.5)}
+.bigdoor .wreath::before{content:"";position:absolute;left:50%;top:-8px;translate:-50% 0;width:10px;height:7px;background:#B3262E;border-radius:2px}
+.bigdoor .step{display:block;margin:0 -9px;padding:7px 6px;background:linear-gradient(180deg,#F6E6B8,#D9BC6E);border-radius:2px;box-shadow:0 10px 16px -6px rgba(0,0,0,.8);text-align:center;color:#1E2433;font-size:13px;font-weight:700;line-height:1.25}
+.gate-count{margin:18px 0 6px;font-size:16px;text-align:center}
+.gate-fine{text-align:center}
 .gate-form{display:grid;gap:6px}
 .gate-form label{font-size:14px;font-weight:700;color:var(--dim);margin-top:8px}
 .gate-form input{width:100%;min-height:54px;padding:12px 14px;border-radius:10px;border:2px solid var(--line);background:var(--surface);font-size:17px}

@@ -147,11 +147,17 @@ function wallHTML(opts){
 }
 function showGate(){
   $('app').hidden = true; $('gate').hidden = false;
-  $('gateDoors').innerHTML = wallHTML({names: false, id: 'g'});
   const n = nextDrop(), {days} = dayInfo();
   const openCount = drops().filter(d => atMs(d) <= now()).length;
+  // The hero is one big Georgian door: today's, with its number on the plate.
+  const slot = Math.min(12, Math.max(1, openCount || 1));
+  const caption = days < 0 ? 'Closed for the year'
+    : openCount === 12 ? 'Every door is open'
+    : openCount ? `Door ${openCount} is open`
+    : `First door: ${n ? esc(shortDay(n.at)) : 'soon'} at 12:00`;
+  $('bigDoor').innerHTML = `<span class="surround"><span class="fan">${fanSVG(openCount > 0, 'hero')}</span><span class="frame"><span class="leaf">${leafSVG(slot, 'hero')}</span>${days >= 0 ? '<span class="wreath"></span>' : ''}</span></span><span class="step">${caption}</span>`;
   $('gateCount').innerHTML = days < 0 ? 'Done for another year. See you in 2027.'
-    : openCount ? `<b>${plural(openCount, 'door is', 'doors are')} open.</b> A new pub drops every day at 12:00 until the night. Sign in to see what's behind them.`
+    : openCount ? `<b>${plural(openCount, 'door is', 'doors are')} already open.</b> One pub a day until the night itself. Sign in to see what's behind them.`
     : `The first door opens ${n ? esc(longDay(n.at)) : 'soon'} at 12:00. One pub a day until the night.`;
   $('gName').value = store.get('name', '');
 }

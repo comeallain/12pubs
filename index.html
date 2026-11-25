@@ -21,25 +21,24 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=35">
+<link rel="stylesheet" href="app.css?v=36">
 </head>
 <body>
 
 <!-- SIGN-IN -->
 <section id="gate" class="gate" hidden>
-  <div class="fascia"><span class="screw"></span><h1>12 Pubs<br>Of Winter<sup>*</sup></h1><span class="screw"></span></div>
-  <p class="footnote">*we don't want to offend anyone, you bunch of cunts</p>
-  <p class="gate-when" id="gateWhen">Wednesday 2 December, 15:30</p>
-  <div class="wall gate-wall" id="gateDoors" aria-hidden="true"></div>
+  <p class="gate-kicker">Dublin &middot; Wednesday 2 December</p>
+  <h1 class="gate-title">12 Pubs <small>of Winter</small></h1>
+  <div class="bigdoor" id="bigDoor" aria-hidden="true"></div>
   <p class="gate-count" id="gateCount"></p>
   <form id="gateForm" class="gate-form" novalidate>
-    <label for="gName">Your name</label>
+    <label for="gName">Name at the door</label>
     <input id="gName" name="nickname" autocomplete="off" placeholder="What the lads call you" maxlength="40" required
            data-1p-ignore data-lpignore="true" data-protonpass-ignore="true">
     <button class="btn brass big" id="gateBtn" type="submit">Let me in</button>
     <p class="gate-msg" id="gateMsg" role="alert"></p>
   </form>
-  <p class="fine">That's all we ask for — no email, no password. This phone remembers you.</p>
+  <p class="fine gate-fine">No email, no password — this phone remembers you.</p>
 </section>
 
 <!-- APP -->
@@ -106,6 +105,6 @@
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=35"></script>
+<script src="app.js?v=36"></script>
 </body>
 </html>
