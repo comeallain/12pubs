@@ -153,18 +153,27 @@ function showGate(){
   $('gateCount').innerHTML = days < 0 ? 'Done for another year. See you in 2027.'
     : openCount ? `<b>${plural(openCount, 'door is', 'doors are')} open.</b> A new pub drops every day at 12:00 until the night. Sign in to see what's behind them.`
     : `The first door opens ${n ? esc(longDay(n.at)) : 'soon'} at 12:00. One pub a day until the night.`;
-  if(email) $('gEmail').value = email;
+  $('gName').value = store.get('name', '');
+}
+/* Identity is a random token this phone makes up and keeps; the name is
+   just what the crew sees. Nothing to type but the name, ever. */
+function myKey(){
+  if(email) return email;   // legacy email keys from November keep working
+  const t = (crypto.randomUUID ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16)));
+  return t;
 }
 $('gateForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const em = $('gEmail').value.trim().toLowerCase(), nm = $('gName').value.trim();
+  const nm = $('gName').value.trim();
   const msg = $('gateMsg');
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ msg.textContent = 'That doesn\'t look like an email address.'; return; }
+  if(!nm){ msg.textContent = 'Go on, we need something to call you.'; return; }
   $('gateBtn').disabled = true; $('gateBtn').textContent = 'Checking the list…'; msg.textContent = '';
+  const key = myKey();
   try{
-    const r = await rpc('join_crawl', {p_email: em, p_name: nm || null});
-    if(!r.ok){ msg.textContent = r.reason === 'axed' ? 'You\'ve been axed. 🪓 Take it up with Kevin.' : 'That doesn\'t look like an email address.'; return; }
-    email = r.email; store.set('email', email);
+    const r = await rpc('join_crawl_v2', {p_key: key, p_name: nm});
+    if(!r.ok){ msg.textContent = r.reason === 'axed' ? 'You\'ve been axed. 🪓 Take it up with Kevin.' : 'Couldn\'t get you in. Try again.'; return; }
+    email = key; store.set('email', email); store.set('name', nm);
     await refresh(true);
     showApp();
   }catch(err){
@@ -401,7 +410,7 @@ const standalone = () => matchMedia('(display-mode: standalone)').matches || nav
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 function renderMe(){
   const me = S.me || {};
-  let h = `<div class="panel"><h2>${esc(me.name || 'No name yet')}</h2><p style="color:var(--dim)">${esc(me.email)}</p>
+  let h = `<div class="panel"><h2>${esc(me.name || 'No name yet')}</h2>${me.email && me.email.includes('@') ? `<p style="color:var(--dim)">${esc(me.email)}</p>` : ''}
     <div class="field"><label for="meName">Your name</label><input id="meName" value="${esc(me.name || '')}" maxlength="40"></div>
     <div class="row"><button class="btn small" id="meSave" type="button">Save name</button><button class="btn small ghost" id="meOut" type="button">Sign out</button></div></div>`;
   if(!standalone()){
@@ -413,7 +422,7 @@ function renderMe(){
     <div class="field"><label for="pinIn">Admin PIN</label><input id="pinIn" type="password" autocomplete="off" autocapitalize="off"></div>
     <button class="btn small" id="pinGo" type="button">${pin ? 'Unlocked ✓' : 'Unlock'}</button> <span class="fine" id="pinMsg"></span></div>`;
   $('v-me').innerHTML = h;
-  $('meSave').onclick = async () => { try{ await rpc('join_crawl', {p_email: email, p_name: $('meName').value}); toast('Name saved.'); refresh(); }catch(e){ toast('Couldn\'t save. Try again with signal.'); } };
+  $('meSave').onclick = async () => { try{ const nm = $('meName').value.trim(); if(!nm) return; await rpc('join_crawl_v2', {p_key: email, p_name: nm}); store.set('name', nm); toast('Name saved.'); refresh(); }catch(e){ toast('Couldn\'t save. Try again with signal.'); } };
   $('meOut').onclick = () => { store.del('email'); store.del('state'); store.del('pin'); email = null; S = null; pin = null; admin = null; showGate(); };
   if($('install')) $('install').onclick = async () => { installEvt.prompt(); await installEvt.userChoice; installEvt = null; renderMe(); };
   $('pinGo').onclick = async () => {
@@ -430,9 +439,9 @@ function renderAdmin(){
   if(!admin){ $('v-admin').innerHTML = '<div class="empty" style="margin-top:16px">Loading…</div>'; refresh(); return; }
   const P = plan(), used = new Set(P.map(s => s.pub.name)), subsAll = admin.subs_all || [];
   const live = admin.guests.filter(g => !g.blocked).length;
-  let h = `<div class="panel"><h2>Guest list (${live})</h2><p>People add themselves with their email. Axe someone and they can't get back in until you bring them back.</p>
+  let h = `<div class="panel"><h2>Guest list (${live})</h2><p>People add themselves with just a name — the phone remembers them. Axe someone and that phone can't get back in until you bring them back.</p>
     <button class="btn small" id="aInvite" type="button">Copy the link message</button>
-    <div class="glist">${admin.guests.map(g => `<div class="gitem${g.blocked ? ' axed' : ''}"><span>${esc(g.name || 'No name')} <small>${esc(g.email)}, ${g.checkins} in</small></span>${g.blocked
+    <div class="glist">${admin.guests.map(g => `<div class="gitem${g.blocked ? ' axed' : ''}"><span>${esc(g.name || 'No name')} <small>${g.email.includes('@') ? esc(g.email) + ', ' : ''}${g.checkins} in</small></span>${g.blocked
       ? `<button class="btn small ghost" data-unaxe="${esc(g.email)}" type="button">Bring back</button>`
       : confirmRemove === g.email ? `<button class="btn small danger" data-rm="${esc(g.email)}" type="button">Axe ${esc(g.name || 'them')}?</button>` : `<button class="btn small ghost" data-rmask="${esc(g.email)}" type="button" aria-label="Axe ${esc(g.name || g.email)}">🪓</button>`}</div>`).join('')}</div></div>`;
   h += `<div class="panel"><h2>Pub photos</h2><p>Use your own photos from past crawls. Every pub shows Street View either way.</p><div class="photos">${(admin.pubs || []).map(p => `<div class="prow"><span class="th" style="${p.photo_url ? `background-image:url('${esc(p.photo_url)}')` : ''}">${p.photo_url ? '' : 'None'}</span><span><b>${esc(p.name)}</b><small>${p.photo_url ? esc(p.photo_credit || 'Your photo') : 'Street View only'}</small></span><span class="row">${p.photo_url ? `<button class="btn small ghost" data-unphoto="${esc(p.id)}" type="button">Remove</button>` : ''}<label class="btn small">Upload<input type="file" accept="image/*" data-photo="${esc(p.id)}"></label></span></div>`).join('')}</div></div>`;
@@ -450,7 +459,7 @@ function renderAdmin(){
   h += `<div style="padding:0 16px"><button class="btn small ghost" id="lock" type="button">Lock admin on this phone</button></div>`;
   $('v-admin').innerHTML = h;
 
-  $('aInvite').onclick = () => copy(`12 Pubs Of Winter. Wednesday 2 December, 15:30.\nA new pub drops every day at 12:00 until the night: ${SITE}\nPut in your name and email to see it. Can't make it? 🪓`);
+  $('aInvite').onclick = () => copy(`12 Pubs Of Winter. Wednesday 2 December, 15:30.\nA new pub drops every day at 12:00 until the night: ${SITE}\nPut in your name to see it. Can't make it? 🪓`);
   document.querySelectorAll('[data-rmask]').forEach(b => b.onclick = () => { confirmRemove = b.dataset.rmask; renderAdmin(); });
   document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.rm, p_name: null, p_remove: true}); confirmRemove = null; toast('Axed. 🪓'); await refresh(); }catch(e){ toast('Couldn\'t axe them. Try again with signal.'); } });
   document.querySelectorAll('[data-unaxe]').forEach(b => b.onclick = async () => { try{ await rpc('admin_guest', {p_pin: pin, p_email: b.dataset.unaxe, p_name: null, p_remove: false}); toast('Brought back.'); await refresh(); }catch(e){ toast('Couldn\'t bring them back.'); } });

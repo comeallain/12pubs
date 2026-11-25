@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=33">
+<link rel="stylesheet" href="app.css?v=34">
 </head>
 <body>
 
@@ -34,13 +34,12 @@
   <p class="gate-count" id="gateCount"></p>
   <form id="gateForm" class="gate-form" novalidate>
     <label for="gName">Your name</label>
-    <input id="gName" name="name" autocomplete="given-name" placeholder="What the lads call you" maxlength="40">
-    <label for="gEmail">Email</label>
-    <input id="gEmail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
+    <input id="gName" name="nickname" autocomplete="off" placeholder="What the lads call you" maxlength="40" required
+           data-1p-ignore data-lpignore="true" data-protonpass-ignore="true">
     <button class="btn brass big" id="gateBtn" type="submit">Let me in</button>
     <p class="gate-msg" id="gateMsg" role="alert"></p>
   </form>
-  <p class="fine">Your email keeps your check-ins yours. Nobody else sees it.</p>
+  <p class="fine">That's all we ask for — no email, no password. This phone remembers you.</p>
 </section>
 
 <!-- APP -->
@@ -107,6 +106,6 @@
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=33"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>
