@@ -375,6 +375,14 @@ $('svDone').onclick = closeLook;
 
 /* map */
 let map = null, mapLayer = null, meMarker = null, watchId = null;
+function sizeMap(){
+  // The map gets exactly the space between whatever sits above it and the tab bar.
+  const el = $('map'); if(el.offsetParent === null) return;
+  const tabs = document.querySelector('.tabs');
+  const h = window.innerHeight - el.getBoundingClientRect().top - (tabs ? tabs.offsetHeight : 64);
+  el.style.height = Math.max(280, h) + 'px';
+  if(map) map.invalidateSize();
+}
 function renderMap(){
   const R = revealed();
   $('mapNote').textContent = S.locked ? `The map fills in as the doors open. ${R.length} of 12 so far.` : '';
@@ -382,9 +390,12 @@ function renderMap(){
   if(!window.L){ $('map').innerHTML = '<p class="empty" style="margin:16px">The map needs signal to load.</p>'; return; }
   if(!map){
     map = L.map('map', {zoomControl: false});
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '&copy; OpenStreetMap', maxZoom: 19, className: 'darkmap'}).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {attribution: '&copy; Esri &copy; OpenStreetMap', maxNativeZoom: 16, maxZoom: 18}).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom: 16, maxZoom: 18, pane: 'shadowPane'}).addTo(map);
     mapLayer = L.layerGroup().addTo(map);
+    window.addEventListener('resize', sizeMap);
   }
+  sizeMap();
   mapLayer.clearLayers();
   const P = S.locked ? R.map(r => ({slot: r.slot, pub: r.pub})) : plan();
   const m = nowMin(), cur = !S.locked && dayInfo().isDay ? P.findIndex(s => m >= s.start && m < s.end) : -1;
@@ -396,7 +407,7 @@ function renderMap(){
   P.forEach((s, i) => {
     const cls = i === cur ? 'now' : (myAt(s.slot) ? 'done' : '');
     L.marker([s.pub.lat, s.pub.lng], {zIndexOffset: i === cur ? 1000 : i, icon: L.divIcon({className: '', iconSize: [28, 34], iconAnchor: [14, 17], html: `<div class="pin ${cls}" style="--dc:${doorColour(s.slot)}">${s.slot}</div>`})})
-      .bindPopup(`<b>${esc(s.pub.name)}</b><br>${s.start ? hm(s.start) + ' to ' + hm(s.end) : 'Door ' + s.slot}`).addTo(mapLayer);
+      .bindPopup(`<b>${esc(s.pub.name)}</b><br>${s.start ? hm(s.start) + ' to ' + hm(s.end) : 'Pub ' + s.slot}`).addTo(mapLayer);
   });
   setTimeout(() => {
     map.invalidateSize();
@@ -497,7 +508,7 @@ const YEAR_HUE = {2011:198,2012:14,2013:262,2014:40,2015:330,2017:150,2018:24,20
 function drawArchive(){
   if(!window.L || !$('archMap')) return;
   archMap = L.map('archMap', {zoomControl: false, attributionControl: false});
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, className: 'darkmap'}).addTo(archMap);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom: 16, maxZoom: 18}).addTo(archMap);
   const years = admin.archive.filter(y => archYear === null || y.year === archYear), pts = [];
   years.forEach(y => {
     const col = `hsl(${YEAR_HUE[y.year] ?? (y.year * 37) % 360} 62% 58%)`;
